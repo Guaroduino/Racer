@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acerca de los Robots Seguidores  de Líneas y el Simulador</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #0056b3;
+            border-bottom: 2px solid #0056b3;
+            padding-bottom: 5px;
+        }
+        h3 {
+            color: #007bff;
+        }
+        ul, ol {
+            margin-bottom: 15px;
+        }
+        li {
+            margin-bottom: 5px;
+        }
+        code {
+            background-color: #e9ecef;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: "Courier New", Courier, monospace;
+        }
+        pre {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        strong {
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Explorando el Mundo de los Robots Seguidores de Líneas y Nuestro Simulador</h1>
+        <h2>Introducción</h2>
+        <p>¡Bienvenido a la sección de aprendizaje de nuestro simulador de robots seguidores de líneas! Aquí descubrirás qué son estos fascinantes robots, cómo funcionan, cómo se programan con Arduino y, lo más importante, cómo puedes usar nuestro simulador para diseñar, probar y optimizar tus propios robots virtuales.</p>
+        <hr>
+
+        <h2>¿Qué es un Robot Seguidor de Líneas?</h2>
+        <p>Un <strong>robot seguidor de líneas</strong> es un vehículo autónomo diseñado para detectar y seguir una línea dibujada en el suelo. Esta línea suele ser de un color que contrasta fuertemente con la superficie (por ejemplo, una línea negra sobre un fondo blanco, o viceversa). Estos robots son muy populares en el ámbito educativo y en competencias de robótica, ya que introducen conceptos fundamentales de sensado, lógica de control y actuación.</p>
+        <p>Su funcionamiento se basa en un bucle constante de:</p>
+        <ol>
+            <li><strong>Sensar:</strong> Detectar la posición de la línea con respecto al robot.</li>
+            <li><strong>Decidir:</strong> Aplicar una lógica de control para determinar cómo debe moverse el robot.</li>
+            <li><strong>Actuar:</strong> Mover los motores para corregir la trayectoria y mantenerse sobre la línea.</li>
+        </ol>
+
+        <hr>
+
+        <h2>Componentes Típicos de un Robot Seguidor de Líneas Físico</h2>
+        <p>Aunque nuestro simulador es virtual, es útil conocer los componentes de un robot real para entender mejor su funcionamiento:</p>
+        <ul>
+            <li><strong>Chasis:</strong> Es la estructura física del robot que sostiene todos los demás componentes. Su diseño (material, forma, tamaño) puede influir en el rendimiento.</li>
+            <li><strong>Microcontrolador (Arduino):</strong> Actúa como el "cerebro" del robot. Una placa Arduino (como Arduino UNO) es comúnmente utilizada debido a su facilidad de programación y versatilidad. Recibe información de los sensores y envía comandos a los motores.</li>
+            <li><strong>Sensores Infrarrojos (IR):</strong> Son los "ojos" del robot. Típicamente se usan pares de emisor-detector infrarrojo (como el CNY70 o módulos TCRT5000). El emisor envía luz IR y el detector mide cuánta luz se refleja. Una superficie blanca refleja más luz IR que una negra. Con varios sensores, el robot puede saber si está centrado, a la izquierda o a la derecha de la línea.</li>
+            <li><strong>Motores y Ruedas:</strong> Proporcionan el movimiento. Generalmente se usan dos motores de corriente continua (DC) con ruedas, permitiendo giros diferenciales (una rueda gira más rápido que la otra, o en sentido contrario, para cambiar de dirección).</li>
+            <li><strong>Controlador de Motores (Puente H):</strong> Un microcontrolador como Arduino no puede suministrar directamente la corriente que necesitan los motores. Un controlador de motores (por ejemplo, el L293D o L298N) actúa como un intermediario, permitiendo al Arduino controlar la velocidad y dirección de los motores.</li>
+            <li><strong>Fuente de Alimentación:</strong> Baterías o un paquete de pilas que proporcionan la energía necesaria para todos los componentes electrónicos.</li>
+            <li><strong>Rueda Loca o Deslizador:</strong> Un tercer punto de apoyo (además de las dos ruedas motrices) que permite al robot girar con facilidad.</li>
+        </ul>
+
+        <hr>
+
+        <h2>Programación con Arduino IDE</h2>
+        <p>Los robots seguidores de líneas basados en Arduino se programan utilizando el <strong>Arduino IDE (Entorno de Desarrollo Integrado)</strong>. El lenguaje de programación es una variante de C/C++.</p>
+        <p>La lógica básica de control en el código de Arduino suele seguir estos pasos dentro de la función <code>loop()</code> (que se ejecuta continuamente):</p>
+        <ol>
+            <li><strong>Leer los Sensores:</strong> Obtener los valores digitales (NEGRO/BLANCO) o analógicos (niveles de reflexión) de los sensores de línea.</li>
+            <li><strong>Tomar Decisiones:</strong> Basándose en las lecturas de los sensores, determinar la posición del robot respecto a la línea:
+                <ul>
+                    <li>Si el sensor izquierdo detecta la línea negra y el derecho blanco: el robot está desviado a la derecha, necesita girar a la izquierda.</li>
+                    <li>Si el sensor derecho detecta la línea negra y el izquierdo blanco: el robot está desviado a la izquierda, necesita girar a la derecha.</li>
+                    <li>Si ambos sensores (o el central, si se usan más) detectan la línea: el robot está centrado, debe avanzar.</li>
+                    <li>Si ningún sensor detecta la línea: el robot se ha salido (o es una sección sin línea), puede detenerse o implementar una rutina de búsqueda.</li>
+                </ul>
+            </li>
+            <li><strong>Controlar los Motores:</strong> Enviar las señales adecuadas al controlador de motores para que las ruedas giren a la velocidad y dirección deseadas para ejecutar la corrección.</li>
+        </ol>
+        <p>En el editor de codigo del simulador podras usar un lenguaje parecido al usado en Arduino, pero simplificado.</p>
+        <pre><code>
+
+
+        <h2>Explorando con Nuestro Simulador de Robot Seguidor de Líneas 🚀</h2>
+        <p>¡Bienvenido a nuestro simulador de robot seguidor de líneas, accesible en <a href="https://svpsteamclub.github.io/Sim/" target="_blank">svpsteamclub.github.io/Sim/</a>! Esta herramienta te permite diseñar, programar y probar virtualmente tus robots seguidores de líneas antes de construirlos físicamente, o simplemente para aprender y experimentar con diferentes configuraciones y algoritmos sin necesidad de hardware.</p>
+
+        <h3>¿Cómo se usa el simulador?</h3>
+        <p>Nuestro simulador está diseñado para ser intuitivo. Generalmente, te permitirá:</p>
+        <ul>
+            <li><strong>Cargar o Diseñar Pistas:</strong> Podrás seleccionar pistas predefinidas o, dependiendo de las funcionalidades, crear tus propios recorridos con diferentes niveles de complejidad (curvas, cruces, etc.).</li>
+            <li><strong>Configurar el Robot Virtual:</strong> Podrás ajustar parámetros clave del robot, como el número de sensores, su posición relativa, la velocidad base de los motores, y otras características que afectan su comportamiento. ¡Aquí es donde entra en juego la evaluación de geometrías!</li>
+            <li><strong>Introducir tu Código de Control:</strong> El simulador cuenta con un editor donde podrás escribir o pegar tu código de control, similar al que usarías en el Arduino IDE. El simulador interpretará este código para dirigir al robot virtual.</li>
+            <li><strong>Ejecutar la Simulación:</strong> Una vez configurada la pista, el robot y el código, podrás iniciar la simulación. Verás en tiempo real cómo tu robot virtual intenta seguir la línea en la pista diseñada.</li>
+            <li><strong>Observar y Depurar:</strong> Podrás ver el comportamiento del robot, las lecturas de sus sensores virtuales y, a menudo, mensajes de depuración que te ayudarán a entender qué está haciendo tu código y por qué.</li>
+            <li><strong>Reiniciar y Modificar:</strong> Si el robot no se comporta como esperas, puedes detener la simulación, modificar tu código o la configuración del robot, y volver a intentarlo rápidamente.</li>
+        </ul>
+
+        <hr>
+
+        <h2>Evaluando Distintas Geometrías de Robot y Códigos de Control con el Simulador</h2>
+        <p>El verdadero poder de un simulador como el nuestro reside en su capacidad para permitirte <strong>experimentar de forma rápida, económica y eficiente</strong>. Puedes probar ideas que serían costosas o llevarían mucho tiempo con un robot físico.</p>
+
+        <h3>Evaluación de Geometrías del Robot 📐</h3>
+        <p>La "geometría" de tu robot se refiere a la disposición física de sus componentes, especialmente aquellos que influyen en cómo detecta la línea y cómo se mueve. Con el simulador, puedes investigar cómo afectan estos cambios:</p>
+        <ul>
+            <li>
+                <strong>Posición y Separación de los Sensores:</strong>
+                <ul>
+                    <li>¿Qué tan separados deben estar los sensores entre sí? Sensores muy juntos pueden tener dificultades en curvas amplias o al detectar desviaciones sutiles. Sensores muy separados pueden hacer que el robot "dude" o reaccione tarde.</li>
+                    <li>¿Qué tan adelante del eje de las ruedas motrices deben estar los sensores? Una mayor distancia puede dar más tiempo para reaccionar y hacer al robot más "previsor", pero también puede amplificar las oscilaciones si el control no es adecuado. Una menor distancia puede requerir reacciones más rápidas.</li>
+                </ul>
+            </li>
+            <li>
+                <strong>Distancia entre Ruedas (Batalla y Ancho de Vía):</strong> Aunque el simulador modele un robot con dimensiones específicas, entender cómo el tamaño y la proporción afectan la maniobrabilidad es clave. Un robot más ancho podría ser más estable pero menos ágil en curvas cerradas.
+            </li>
+            <li>
+                <strong>Número de Sensores:</strong> ¿Es mejor usar 2, 3, 5 o más sensores? Más sensores pueden proporcionar información más detallada sobre la posición de la línea, permitiendo algoritmos de control más suaves y precisos, especialmente en intersecciones o líneas discontinuas.
+            </li>
+        </ul>
+        <p><strong>¿Cómo usar el simulador para evaluar geometrías?</strong></p>
+        <ol>
+            <li><strong>Identifica los Parámetros Configurables:</strong> Revisa en la interfaz del simulador qué aspectos de la geometría del robot puedes modificar (ej. distancia entre sensores, offset frontal de los sensores).</li>
+            <li><strong>Define un Escenario de Prueba:</strong> Usa la misma pista y el mismo código de control básico.</li>
+            <li><strong>Modifica un Parámetro a la Vez:</strong> Cambia una característica geométrica y ejecuta la simulación.</li>
+            <li><strong>Observa y Compara:</strong> ¿El robot sigue la línea mejor o peor? ¿Es más estable? ¿Completa la pista más rápido o se sale? Anota tus observaciones.</li>
+            <li><strong>Itera:</strong> Prueba diferentes configuraciones hasta encontrar una que consideres óptima para el tipo de pista o el rendimiento que buscas.</li>
+        </ol>
+
+        <h3>Evaluación de Códigos de Control (Algoritmos) 💻</h3>
+        <p>El código de control es el "alma" de tu robot. El simulador es una plataforma ideal para probar desde lógicas simples hasta algoritmos más avanzados sin arriesgar un robot físico o perder tiempo subiendo código repetidamente.</p>
+        <ul>
+            <li>
+                <strong>Control Básico On-Off (o Bang-Bang):</strong>
+                <p>Es el más simple: si el sensor izquierdo está en la línea, gira fuerte a la izquierda; si el derecho, gira fuerte a la derecha. Esto suele producir un movimiento oscilante ("zigzagueante") sobre la línea.</p>
+            </li>
+            <li>
+                <strong>Control Proporcional (P):</strong>
+                <p>La corrección es proporcional al error (qué tan lejos está el robot del centro de la línea). Si está un poco desviado, corrige un poco. Si está muy desviado, corrige más. Esto suaviza el movimiento en comparación con el control on-off. Necesitarás ajustar una constante de proporcionalidad (Kp).</p>
+                <p><code>correccion = Kp * error;</code></p>
+                <p><code>velocidadMotorIzq = velocidadBase - correccion;</code></p>
+                <p><code>velocidadMotorDer = velocidadBase + correccion;</code></p>
+            </li>
+            <li>
+                <strong>Control Proporcional-Derivativo (PD):</strong>
+                <p>Añade un componente derivativo (Kd) que considera la velocidad con la que cambia el error. Esto ayuda a "anticipar" y amortiguar las oscilaciones, haciendo que el robot sea más estable y responda mejor a cambios rápidos en la línea (como la entrada a una curva).</p>
+                <p><code>derivativo = Kd * (error - errorAnterior);</code></p>
+                <p><code>correccion = Kp * error + derivativo;</code></p>
+            </li>
+            <li>
+                <strong>Control Proporcional-Integral-Derivativo (PID):</strong>
+                <p>Es el más completo y a menudo el más eficiente, pero también el más complejo de "sintonizar" (ajustar las constantes Kp, Ki, Kd). El componente integral (Ki) ayuda a corregir errores acumulados a lo largo del tiempo, permitiendo que el robot se centre mejor en la línea incluso con perturbaciones o irregularidades.</p>
+                <p><code>integral = integral + Ki * error;</code></p>
+                <p><code>correccion = Kp * error + integral + Kd * (error - errorAnterior);</code></p>
+            </li>
+        </ul>
+        <p><strong>¿Cómo usar el simulador para evaluar códigos de control?</strong></p>
+        <ol>
+            <li><strong>Implementa el Algoritmo:</strong> Escribe el código para la lógica de control que quieres probar en el editor del simulador.</li>
+            <li><strong>Ajusta los Parámetros (Sintonización):</strong> Para controles P, PD o PID, las constantes (Kp, Ki, Kd) son cruciales. El simulador te permite cambiarlas rápidamente en el código y ver el efecto inmediato sin necesidad de recompilar y cargar en un robot físico. Empieza con valores pequeños y ajústalos gradualmente.</li>
+            <li><strong>Prueba en Diversas Pistas:</strong> Un código que funciona bien en una pista simple con curvas suaves podría fallar en una pista compleja con ángulos cerrados, cruces o interrupciones. El simulador te permite probar la robustez de tu algoritmo en diferentes escenarios.</li>
+            <li><strong>Analiza la Trayectoria y la Estabilidad:</strong> Observa si el robot sigue la línea suavemente, si oscila mucho, si se sale en las curvas, o si es demasiado lento en las rectas o demasiado agresivo en sus correcciones. Busca un equilibrio.</li>
+            <li><strong>Utiliza Herramientas de Depuración:</strong> Si el simulador ofrece visualización de variables o gráficos (por ejemplo, del error o de la salida de los sensores), úsalos para entender mejor el comportamiento de tu algoritmo.</li>
+        </ol>
+        <p>¡La clave es la <strong>experimentación</strong>! No tengas miedo de probar diferentes enfoques, ajustar valores y ver qué sucede. El simulador es tu laboratorio virtual para convertirte en un experto en robots seguidores de líneas.</p>
+        <p>¡Diviértete aprendiendo y optimizando tus robots en <a href="https://svpsteamclub.github.io/Sim/" target="_blank">nuestro simulador</a>!</p>
+    </div>
+</body>
+</html>

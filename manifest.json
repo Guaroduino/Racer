@@ -1,0 +1,21 @@
+{
+  "name": "Simulador de Seguidor de Líneas",
+  "short_name": "SimLineSim",
+  "start_url": ".",
+  "display": "fullscren",
+  "background_color": "#ffffff",
+  "theme_color": "#1976d2",
+  "description": "Simulador avanzado de robots seguidores de línea para Arduino.",
+  "icons": [
+    {
+      "src": "assets/Logo%20guaroduino.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/Logo%20guaroduino.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

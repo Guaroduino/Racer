@@ -1,0 +1,1 @@
+import { loadUserCode } from './js/codeEditor.js'; const DEMO_CODE = \int vel = 100; int velinv = 20; void setup() { pinMode(5, OUTPUT); } void loop() { analogWrite(5, vel); }\; console.log(loadUserCode(DEMO_CODE));

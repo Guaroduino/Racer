@@ -1,0 +1,87 @@
+{
+  "geometry": {
+    "width_m": 0.16,
+    "sensorOffset_m": 0.08,
+    "sensorSpread_m": 0.08,
+    "sensorDiameter_m": 0.02
+  },
+  "parts": [
+    {
+      "id": "chassis2",
+      "name": "Chassis 2",
+      "x": 0.0292890625,
+      "y": -0.0021953125,
+      "rotation": 0
+    },
+    {
+      "id": "motor",
+      "name": "Motor DC con Reductor",
+      "x": 0.0492890625,
+      "y": 0.0198046875,
+      "rotation": 3.141592653589793
+    },
+    {
+      "id": "sensor",
+      "name": "Sensor",
+      "x": 0.0802890625,
+      "y": -0.0591953125,
+      "rotation": 1.5707963267948966
+    },
+    {
+      "id": "chassis2",
+      "name": "Chassis 2",
+      "x": -0.0327109375,
+      "y": -0.0021953125,
+      "rotation": 0
+    },
+    {
+      "id": "motor",
+      "name": "Motor DC con Reductor",
+      "x": -0.0497109375,
+      "y": 0.0188046875,
+      "rotation": 3.141592653589793
+    },
+    {
+      "id": "18650",
+      "name": "Batería 18650",
+      "x": 0.0012890625,
+      "y": 0.0628046875,
+      "rotation": 1.5707963267948966
+    },
+    {
+      "id": "18650",
+      "name": "Batería 18650",
+      "x": 0.0012890625,
+      "y": 0.0458046875,
+      "rotation": 1.5707963267948966
+    },
+    {
+      "id": "arduino_uno",
+      "name": "Arduino Uno",
+      "x": 0.0032890625,
+      "y": 0.0088046875,
+      "rotation": 3.141592653589793
+    },
+    {
+      "id": "l298n",
+      "name": "L298N Driver",
+      "x": -0.0017109375,
+      "y": -0.0411953125,
+      "rotation": 0
+    },
+    {
+      "id": "sensor",
+      "name": "Sensor",
+      "x": -0.0797109375,
+      "y": -0.0581953125,
+      "rotation": 1.5707963267948966
+    },
+    {
+      "id": "sensor",
+      "name": "Sensor",
+      "x": 0.0002890625,
+      "y": -0.0721953125,
+      "rotation": 1.5707963267948966
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "geometry": {
+    "width_m": 0.14,
+    "sensorOffset_m": 0.15,
+    "sensorSpread_m": 0.017,
+    "sensorDiameter_m": 0.02
+  },
+  "parts": [
+    {
+      "id": "robot_body",
+      "name": "Cuerpo Robot",
+      "x": 0.0022890625,
+      "y": -0.06016796875,
+      "rotation": 4.71238898038469
+    }
+  ]
+}
