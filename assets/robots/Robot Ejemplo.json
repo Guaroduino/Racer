@@ -31,21 +31,21 @@
         "type": "tof",
         "x_mm": 50,
         "y_mm": 32,
-        "angle": 73,
+        "angle": 60,
         "maxDistance": 500,
         "i2cAddress": "0x2B",
         "i2cAddressSym": "0x2C",
-        "symmetric": true
+        "symmetric": false
       },
       {
         "type": "tof",
         "x_mm": 50,
         "y_mm": -32,
-        "angle": -73,
+        "angle": -60,
         "maxDistance": 500,
         "i2cAddress": "0x2D",
         "i2cAddressSym": "0x2E",
-        "symmetric": true
+        "symmetric": false
       }
     ],
     "connections": {

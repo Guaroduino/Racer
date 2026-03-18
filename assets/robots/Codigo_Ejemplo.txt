@@ -1,146 +1,103 @@
-﻿#include <SPI.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+﻿#include <Wire.h>
 #include <Adafruit_VL53L0X.h>
 
 // ====================================================================
-// 1. CONFIGURACION Y PINES (MOTORES)
+// 1. CONFIGURACION DE PINES
 // ====================================================================
 const int IN1 = 5;
 const int IN2 = 6;
 const int IN3 = 7;
 const int IN4 = 8;
 
-Adafruit_SSD1306 pantalla(128, 64, &Wire, -1);
+Adafruit_VL53L0X tof_Frente = Adafruit_VL53L0X(); 
+Adafruit_VL53L0X tof_Der    = Adafruit_VL53L0X(); 
+Adafruit_VL53L0X tof_Izq    = Adafruit_VL53L0X(); 
 
 // ====================================================================
-// 2. OBJETOS Y DIRECCIONES TOF
+// 2. VARIABLES DE AJUSTE
 // ====================================================================
-Adafruit_VL53L0X tof_Frente   = Adafruit_VL53L0X(); // Adelante (0x29)
-Adafruit_VL53L0X tof_DelDer   = Adafruit_VL53L0X(); // Delantero Derecho (0x2B)
-Adafruit_VL53L0X tof_DelIzq   = Adafruit_VL53L0X(); // Delantero Izq (0x2D)
+int velBase = 130;      
+int rangoMax = 250;     
+int distFreno = 200;    
+float gananciaBase = 40.0; // Ganancia cuando va a velocidad maxima
 
-// ====================================================================
-// 3. PARAMETROS DEL NAVEGADOR MATEMATICO (PISTA 200mm)
-// ====================================================================
-int velocidadMaxima = 170;
-float Kp = 0.8;
-float Kd = 1.2;
-int maxGiro = 65;
-
-int ultimoError = 0;
-unsigned long timerPantalla = 0;
-
-// ====================================================================
-// 4. FUNCIONES DE TRACCION
-// ====================================================================
-void aplicarMotores(int vL, int vR) {
-  if (vL >= 0) { analogWrite(IN1, vL); analogWrite(IN2, 0); }
-  else { analogWrite(IN1, 0); analogWrite(IN2, -vL); }
-
-  if (vR >= 0) { analogWrite(IN3, vR); analogWrite(IN4, 0); }
-  else { analogWrite(IN3, 0); analogWrite(IN4, -vR); }
-}
-
-// ====================================================================
-// 5. INICIALIZACION
-// ====================================================================
 void setup() {
   pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
 
-  Serial.begin(9600);
+  Serial.begin(115200);
   Wire.begin();
-  pantalla.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-
-  pantalla.clearDisplay();
-  pantalla.setCursor(0, 0);
-  pantalla.println("PISTA 200 mm");
-  pantalla.println("MIN TOF: 50 mm");
-  pantalla.display();
 
   if(!tof_Frente.begin(0x29)) Serial.println("Error ToF Frente");
-  if(!tof_DelDer.begin(0x2B)) Serial.println("Error ToF DelDer");
-  if(!tof_DelIzq.begin(0x2D)) Serial.println("Error ToF DelIzq");
+  if(!tof_Der.begin(0x2B))    Serial.println("Error ToF Derecho");
+  if(!tof_Izq.begin(0x2D))    Serial.println("Error ToF Izquierdo");
 
-  delay(1000);
+  delay(500);
 }
 
-// ====================================================================
-// 6. BUCLE PRINCIPAL (CINEMATICA DIFERENCIAL)
-// ====================================================================
 void loop() {
-  delay(30);
-  // 1. Leer el entorno
-  int distFrente = tof_Frente.readRange();
-  int distDer = tof_DelDer.readRange();
-  int distIzq = tof_DelIzq.readRange();
+  // Simulacion del delay de 3 sensores HC-SR04 (segun tu consulta)
+  delay(60); 
 
-  // ------------------------------------------------------------------
-  // FILTRADO DE RUIDO Y ZONA CIEGA (50 mm)
-  // ------------------------------------------------------------------
-  // Si da error (0) o entra en la zona ciega (< 50), lo "chocamos" virtualmente a 50mm
-  if (distFrente < 30) distFrente = 30;
-  if (distFrente > 800) distFrente = 800;
+  // --- 1. LECTURA DE SENSORES ---
+  int d_frt = tof_Frente.readRange();
+  int d_der = tof_Der.readRange();
+  int d_izq = tof_Izq.readRange();
 
-  if (distDer < 30) distDer = 30;
-  if (distDer > 200) distDer = 200;
+  // --- 2. LOGICA DE FRENADO FRONTAL ---
+  float factorVel = 1.0;
+  if (d_frt < distFreno) {
+    factorVel = (float)d_frt / distFreno; 
+  }
+  // Mantenemos un minimo de 0.3 para que no se bloquee la division posterior
+  factorVel = constrain(factorVel, 0.3, 1.0); 
+  
+  int velActual = velBase * factorVel;
 
-  if (distIzq < 30) distIzq = 30;
-  if (distIzq > 200) distIzq = 200;
+  // --- 3. LOGICA DE SEGUIMIENTO (ERROR LATERAL) ---
+  int errorRaw = d_izq - d_der; 
+  float correccionNorm = (float)errorRaw / rangoMax;
+  correccionNorm = constrain(correccionNorm, -1.0, 1.0);
 
-  // ------------------------------------------------------------------
-  // A. CALCULAR VELOCIDAD LINEAL (AVANCE)
-  // ------------------------------------------------------------------
-  int vAvance = velocidadMaxima;
-  // Frena cuando la pared esta a menos de 180mm
-  if (distFrente < 180) {
-    // Ahora el mapa termina en 50mm. Si esta a 50mm o menos, vAvance sera 0.
-    vAvance = map(distFrente, 50, 180, 0, velocidadMaxima);
-    vAvance = constrain(vAvance, 0, velocidadMaxima);
+  // --- 4. GANANCIA ADAPTATIVA ---
+  // A medida que factorVel baja (hay algo enfrente), la ganancia sube.
+  // Ejemplo: Si factorVel es 0.5, la ganancia se duplica.
+  float gananciaDinamica = gananciaBase / factorVel;
+
+  int vI = velActual - (correccionNorm * gananciaDinamica); 
+  int vD = velActual + (correccionNorm * gananciaDinamica); 
+
+  // --- 5. APLICAR MOTORES Y LOG ---
+  aplicarMotores(vI, vD);
+
+  Serial.print("F:"); Serial.print(d_frt);
+  Serial.print(" | Fact:"); Serial.print(factorVel);
+  Serial.print(" | Gan:"); Serial.print(gananciaDinamica);
+  Serial.print(" | vI:"); Serial.print(vI);
+  Serial.print(" | vD:"); Serial.println(vD);
+
+  delay(30); 
+}
+
+// Funcion de control de motores por PWM en pines IN
+void aplicarMotores(int vL, int vR) {
+  // Motor Izquierdo
+  vL = constrain(vL, -255, 255);
+  if (vL >= 0) {
+    analogWrite(IN1, vL);
+    digitalWrite(IN2, LOW);
+  } else {
+    digitalWrite(IN1, LOW);
+    analogWrite(IN2, abs(vL));
   }
 
-  // ------------------------------------------------------------------
-  // B. CALCULAR VELOCIDAD ANGULAR (GIRO CON PD)
-  // ------------------------------------------------------------------
-  int error = distDer - distIzq;
-  float proporcion = error * Kp;
-  float derivada = (error - ultimoError) * Kd;
-  int correccionGiro = (int)(proporcion + derivada);
-  ultimoError = error;
-
-  correccionGiro = constrain(correccionGiro, -maxGiro, maxGiro);
-
-  // ------------------------------------------------------------------
-  // C. MEZCLA CINEMATICA (BLENDING)
-  // ------------------------------------------------------------------
-  int vIzq = vAvance + correccionGiro;
-  int vDer = vAvance - correccionGiro;
-
-  vIzq = constrain(vIzq, -30, 150);
-  vDer = constrain(vDer, -30, 150);
-
-  aplicarMotores(vIzq, vDer);
-
-  actualizarPantallaDinamica(distFrente, error, vAvance, vIzq, vDer);
-}
-
-// ====================================================================
-// 7. FUNCIONES DE PANTALLA
-// ====================================================================
-void actualizarPantallaDinamica(int f, int err, int vAv, int vI, int vD) {
-  if (millis() - timerPantalla > 150) {
-    timerPantalla = millis();
-    pantalla.clearDisplay();
-    pantalla.setCursor(0, 0);
-    pantalla.println("= 200mm TRACK =");
-    pantalla.print("Frente: "); pantalla.print(f); pantalla.println(" mm");
-    pantalla.print("V.Avance: "); pantalla.println(vAv);
-
-    pantalla.println("-------------");
-    pantalla.print("M.Izq: "); pantalla.print(vI);
-    pantalla.print(" | M.Der: "); pantalla.println(vD);
-    pantalla.display();
+  // Motor Derecho
+  vR = constrain(vR, -255, 255);
+  if (vR >= 0) {
+    analogWrite(IN3, vR);
+    digitalWrite(IN4, LOW);
+  } else {
+    digitalWrite(IN3, LOW);
+    analogWrite(IN4, abs(vR));
   }
 }
