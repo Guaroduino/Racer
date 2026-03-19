@@ -17,9 +17,9 @@ Adafruit_VL53L0X tof_Izq    = Adafruit_VL53L0X();
 // 2. VARIABLES DE AJUSTE
 // ====================================================================
 int velBase = 130;      
-int rangoMax = 250;     
+int rangoMax = 100;     
 int distFreno = 200;    
-float gananciaBase = 40.0; // Ganancia cuando va a velocidad maxima
+float gananciaBase = 30.0; // Ganancia cuando va a velocidad maxima
 
 void setup() {
   pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
