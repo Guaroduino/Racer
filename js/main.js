@@ -43,90 +43,61 @@ document.addEventListener('DOMContentLoaded', () => {
     let isDemoMode = false;
 
     const DEMO_GEOMETRY = {
-        width_m: 0.10, length_m: 0.15, sensorOffset_m: 0.05, sensorSpread_m: 0.035,
-        sensorDiameter_m: 0.005, sensorCount: 3, robotMass_kg: 0.25,
+        arduinoBoard: "uno",
+        width_m: 0.095, sensorOffset_m: 0.09, sensorSpread_m: 0.015,
+        sensorDiameter_m: 0.02, sensorCount: 0, robotMass_kg: 0.38,
         comOffset_m: 0.0, tireGrip: 0.8,
+        customSensors: [
+          { type: "hcsr04", x_mm: 97, y_mm: 0, angle: 0, coneAngle: 25, maxDistance: 4000 },
+          { type: "hcsr04", x_mm: 50, y_mm: 32, angle: 60, coneAngle: 25, maxDistance: 4000 },
+          { type: "hcsr04", x_mm: 50, y_mm: -32, angle: -60, coneAngle: 25, maxDistance: 4000 }
+        ],
         connections: {
             driverType: 'l298n',
-            sensorPins: { left: 'A1', center: 'A2', right: 'A3', farLeft: '', farRight: '' },
-            motorPins: { leftEn: '10', leftIn1: '3', leftIn2: '5', rightIn3: '6', rightIn4: '9', rightEn: '11', leftPWM: '', rightPWM: '' }
+            sensorPins: { custom_0_Trig: "9", custom_0_Echo: "10", custom_1_Trig: "11", custom_1_Echo: "12", custom_2_Trig: "3", custom_2_Echo: "4" },
+            motorPins: { leftEn: "VCC", leftIn1: "5", leftIn2: "6", rightIn3: "7", rightIn4: "8", rightEn: "VCC" }
         }
     };
 
-    const DEMO_CODE = `// --- Configuración de Pines ---
-const int S_IZQ = A1;
-const int S_CEN = A2;
-const int S_DER = A3;
+    const DEMO_CODE = `#include <NewPing.h>
 
-// Motor Izquierdo
-const int ENA = 10; 
-const int IN1 = 3;
-const int IN2 = 5;
+#define MAX_DIST 400
+NewPing us_Frontal(9, 10, MAX_DIST);
+NewPing us_Derecho(11, 12, MAX_DIST);
+NewPing us_Izquierdo(3, 4, MAX_DIST);
 
-// Motor Derecho
-const int ENB = 11; 
-const int IN3 = 6;
-const int IN4 = 9;
-
-// --- Variables de Control ---
-int vel = 230;
-int velinv = 80;
-int ultimoDir = 2; //1 izquierda, 2 centro, 3 derecha
+const int IN1 = 5, IN2 = 6, IN3 = 7, IN4 = 8;
+int velBase = 150;
+float Kp = 10.0;
 
 void setup() {
+  pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
   Serial.begin(9600);
-  pinMode(S_IZQ, INPUT);
-  pinMode(S_CEN, INPUT);
-  pinMode(S_DER, INPUT);
-  
-  pinMode(ENA, OUTPUT); pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
-  pinMode(ENB, OUTPUT); pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
 }
 
 void loop() {
-  int izq = digitalRead(S_IZQ);
-  int cen = digitalRead(S_CEN);
-  int der = digitalRead(S_DER);
+  int d_frt = us_Frontal.ping_cm(); if(!d_frt) d_frt = MAX_DIST;
+  int d_der = us_Derecho.ping_cm(); if(!d_der) d_der = MAX_DIST;
 
-  if (der && izq) { // Simplificado para simulación
-    analogWrite(ENA, vel); digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
-    analogWrite(ENB, velinv); digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
-    ultimoDir = 3;
+  if (d_frt < 25) {
+     aplicarMotores(-150, 150);
+  } else {
+     if (d_der < 100) { 
+        int error = 20 - d_der; 
+        int correccion = error * Kp;
+        aplicarMotores(velBase + correccion, velBase - correccion);
+     } else {
+        aplicarMotores(180, 80); 
+     }
   }
-  else if (cen && izq) {
-    analogWrite(ENA, 40); digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
-    analogWrite(ENB, vel); digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
-    ultimoDir = 1;
-  }
-  else if (cen && der) {
-    analogWrite(ENA, vel); digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
-    analogWrite(ENB, 40); digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
-    ultimoDir = 3;
-  }
-  else if (der) {
-    analogWrite(ENA, vel); digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
-    analogWrite(ENB, velinv); digitalWrite(IN3, LOW); digitalWrite(IN4, HIGH);
-    ultimoDir = 3;
-  }
-  else if (izq) {
-    analogWrite(ENA, velinv); digitalWrite(IN1, LOW); digitalWrite(IN2, HIGH);
-    analogWrite(ENB, vel); digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
-    ultimoDir = 1;
-  }
-  else if (cen) {
-    analogWrite(ENA, vel); digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
-    analogWrite(ENB, vel); digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
-    ultimoDir = 2;
-  }
-  else if (!izq && !cen && !der && ultimoDir == 1) {
-    analogWrite(ENA, velinv); digitalWrite(IN1, LOW); digitalWrite(IN2, HIGH);
-    analogWrite(ENB, vel); digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
-  }
-  else if (!izq && !cen && !der && ultimoDir == 3) {
-    analogWrite(ENA, vel); digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
-    analogWrite(ENB, velinv); digitalWrite(IN3, LOW); digitalWrite(IN4, HIGH);
-  }
-  delay(5);
+  delay(30); 
+}
+
+void aplicarMotores(int vL, int vR) {
+  vL = constrain(vL, -255, 255); vR = constrain(vR, -255, 255);
+  if (vL >= 0) { analogWrite(IN1, vL); digitalWrite(IN2, LOW); } else { digitalWrite(IN1, LOW); analogWrite(IN2, abs(vL)); }
+  if (vR >= 0) { analogWrite(IN3, vR); digitalWrite(IN4, LOW); } else { digitalWrite(IN3, LOW); analogWrite(IN4, abs(vR)); }
 }`;
 
     function refreshWhenDecorativePartsReady(decorativeParts = []) {

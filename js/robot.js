@@ -626,6 +626,7 @@ export class Robot {
               let numP = 1;
               let isIR = true;
               let isToF = false;
+              let isHCSR04 = false;
               let isLED = false;
               let isRGB = false;
               let isRFID = false;
@@ -634,6 +635,8 @@ export class Robot {
               let customIdx = -1;
               let tofIdx = -1;
               let tofAngle = 0;
+              let coneAngle = 0;
+              let maxDistance = 500;
 
               if (key.startsWith('custom_')) {
                   // Ignore global diagram for custom IRs (fallback to 10mm visually)
@@ -666,12 +669,19 @@ export class Robot {
                           customIdx = idx;
                       }
 
-                      if (cSens.type === 'tof') {
-                          isToF = true;
+                      if (cSens.type === 'tof' || cSens.type === 'hcsr04') {
+                          if (cSens.type === 'tof') {
+                              isToF = true;
+                              coneAngle = cSens.coneAngle !== undefined ? cSens.coneAngle : 15;
+                              maxDistance = cSens.maxDistance !== undefined ? cSens.maxDistance : 500;
+                          } else {
+                              isHCSR04 = true;
+                              coneAngle = cSens.coneAngle !== undefined ? cSens.coneAngle : 30;
+                              maxDistance = cSens.maxDistance !== undefined ? cSens.maxDistance : 4000;
+                          }
                           tofIdx = idx;
                           tofAngle = cSens.angle || 0;
 
-                          // Invert the angle display if this is the symmetric twin, mirroring the math in robotEditor.js
                           if (key.endsWith('_sym')) {
                                 tofAngle = 180 - tofAngle;
                           }
@@ -708,36 +718,62 @@ export class Robot {
                       ctx.lineWidth = 1;
                       ctx.stroke();
                   }
-              } else if (isToF) {
-                  // ToF specific rendering: Orange circle
+              } else if (isToF || isHCSR04) {
+                  const sensorBaseColor = isToF ? 'orange' : '#00FFFF';
+                  
                   ctx.beginPath();
                   ctx.arc(0, 0, currentDrawRadiusPx, 0, 2 * Math.PI);
-                  ctx.fillStyle = 'orange'; // Requested by user
+                  ctx.fillStyle = sensorBaseColor;
                   ctx.fill();
                   ctx.strokeStyle = 'black';
                   ctx.lineWidth = 1;
                   ctx.stroke();
 
-                  // Directional Line for ToF Angle
                   ctx.save();
-                  // tofAngle comes in degrees from the UI, so convert to radians. 
-                  // In local robot space, an angle of 0 points forward (towards positive X).
                   let rad = (tofAngle * Math.PI) / 180;
                   ctx.rotate(rad);
-                  ctx.beginPath();
-                  ctx.moveTo(0, 0);
                   
-                  // Extract the measured distance from sensor readings if available
                   let measured_mm = sensorReadings[key + '_distance_mm'];
-                  let drawLen = currentDrawRadiusPx * 9; // Fallback default length
+                  let drawLen = currentDrawRadiusPx * 9; 
                   if (typeof measured_mm === 'number') {
                       drawLen = (measured_mm / 1000) * PIXELS_PER_METER;
                   }
                   
-                  ctx.lineTo(drawLen, 0); 
-                  ctx.strokeStyle = 'orange';
-                  ctx.lineWidth = 2;
-                  ctx.stroke();
+                  let coneRad = (coneAngle * Math.PI) / 180;
+                  let maxDistPx = (maxDistance / 1000) * PIXELS_PER_METER;
+                  
+                  if (coneRad > 0) {
+                      // Cono de alcance máximo (faint & dashed)
+                      ctx.beginPath();
+                      ctx.moveTo(0, 0);
+                      ctx.arc(0, 0, maxDistPx, -coneRad/2, coneRad/2);
+                      ctx.closePath();
+                      ctx.fillStyle = isToF ? 'rgba(255, 165, 0, 0.05)' : 'rgba(0, 255, 255, 0.05)';
+                      ctx.fill();
+                      ctx.strokeStyle = isToF ? 'rgba(255, 165, 0, 0.2)' : 'rgba(0, 255, 255, 0.2)';
+                      ctx.setLineDash([2, 4]);
+                      ctx.lineWidth = 1;
+                      ctx.stroke();
+                      ctx.setLineDash([]);
+
+                      // Cono real detectado
+                      ctx.beginPath();
+                      ctx.moveTo(0, 0);
+                      ctx.arc(0, 0, drawLen, -coneRad/2, coneRad/2);
+                      ctx.closePath();
+                      ctx.fillStyle = isToF ? 'rgba(255, 165, 0, 0.25)' : 'rgba(0, 255, 255, 0.25)';
+                      ctx.fill();
+                      ctx.strokeStyle = isToF ? 'rgba(255, 165, 0, 0.7)' : 'rgba(0, 255, 255, 0.7)';
+                      ctx.lineWidth = 1;
+                      ctx.stroke();
+                  } else {
+                      ctx.beginPath();
+                      ctx.moveTo(0, 0);
+                      ctx.lineTo(drawLen, 0); 
+                      ctx.strokeStyle = sensorBaseColor;
+                      ctx.lineWidth = 2;
+                      ctx.stroke();
+                  }
                   ctx.restore();
               } else if (isLED) {
                   ctx.beginPath();
@@ -888,11 +924,9 @@ export class Robot {
                 let label = pinNumber;
 
                 // Adjust font size and text if this is a ToF
-                if (isToF) {
-                    fontSize = Math.max(6, currentDrawRadiusPx * 0.6); // Smaller to fit word 'TOF'
-                    // Ensure the generic idx gets shown exactly as TOF <idx+1>
-                    // Only printing label if there's no custom text override
-                    label = "TOF " + (tofIdx + 1); 
+                if (isToF || isHCSR04) {
+                    fontSize = Math.max(6, currentDrawRadiusPx * 0.6);
+                    label = (isToF ? "TOF " : "US ") + (tofIdx + 1); 
                 }
 
                 ctx.font = `${fontSize}px Arial`;

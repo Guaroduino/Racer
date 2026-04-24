@@ -464,6 +464,9 @@ export function initRobotEditor(appInterface) {
                     if (sensor.type === 'rgb' || sensor.type === 'tof' || sensor.type === 'screen') {
                         createRow(`Pin ${typeLabel} ${idx + 1} (SDA, fijo) <span class="fixed-pin-badge" title="Pin fijo por hardware">🔒</span>`, '_SDA', fixedPins.i2cSDA, 'I2C');
                         createRow(`Pin ${typeLabel} ${idx + 1} (SCL, fijo) <span class="fixed-pin-badge" title="Pin fijo por hardware">🔒</span>`, '_SCL', fixedPins.i2cSCL, 'I2C');
+                    } else if (sensor.type === 'hcsr04') {
+                        createRow(`Pin Trig ${typeLabel} ${idx + 1}`, '_Trig');
+                        createRow(`Pin Echo ${typeLabel} ${idx + 1}`, '_Echo');
                     } else if (sensor.type === 'rfid') {
                         createRow(`Pin ${typeLabel} ${idx + 1} (SDA_SS)`, '_SDA');
                         createRow(`Pin ${typeLabel} ${idx + 1} (SCK, fijo) <span class="fixed-pin-badge" title="Pin fijo por hardware">🔒</span>`, '_SCK', fixedPins.spiSCK, 'SPI');
@@ -485,6 +488,9 @@ export function initRobotEditor(appInterface) {
                         if (sensor.type === 'rgb' || sensor.type === 'tof' || sensor.type === 'screen') {
                             createRow(`Pin ${typeLabel} ${idx + 1} (SDA, fijo) C. <span class="fixed-pin-badge" title="Pin fijo por hardware">🔒</span>`, '_sym_SDA', fixedPins.i2cSDA, 'I2C');
                             createRow(`Pin ${typeLabel} ${idx + 1} (SCL, fijo) C. <span class="fixed-pin-badge" title="Pin fijo por hardware">🔒</span>`, '_sym_SCL', fixedPins.i2cSCL, 'I2C');
+                        } else if (sensor.type === 'hcsr04') {
+                            createRowClone(`Pin Trig ${typeLabel} ${idx + 1}`, '_Trig');
+                            createRowClone(`Pin Echo ${typeLabel} ${idx + 1}`, '_Echo');
                         } else if (sensor.type === 'rfid') {
                             createRowClone(`Pin ${typeLabel} ${idx + 1} (SDA_SS)`, '_SDA');
                             createRow(`Pin ${typeLabel} ${idx + 1} (SCK, fijo) C. <span class="fixed-pin-badge" title="Pin fijo por hardware">🔒</span>`, '_sym_SCK', fixedPins.spiSCK, 'SPI');
@@ -645,9 +651,19 @@ export function initRobotEditor(appInterface) {
                         dispAngle = 180 - dispAngle;
                         if (dispAngle > 180) dispAngle -= 360;
                     }
-                    extraHTML = `<input type="number" step="1" id="customSensorAngle_${idx}${isClone ? '_sym' : ''}" value="${dispAngle}" placeholder="Ángulo (°)" style="width: 70px; font-size: 0.8em;" title="Ángulo" ${isClone ? 'disabled' : ''}>
-                                 <input type="number" step="1" id="customSensorMaxDist_${idx}${isClone ? '_sym' : ''}" value="${sensor.maxDistance || 500}" placeholder="Máx (mm)" style="width: 70px; font-size: 0.8em;" title="Distancia Máxima (mm)" ${isClone ? 'disabled' : ''}>
-                                 <input type="text" id="customSensorI2C_${idx}${isClone ? '_sym' : ''}" value="${isClone ? (sensor.i2cAddressSym || '0x2A') : (sensor.i2cAddress || '0x29')}" placeholder="I2C" style="width: 50px; font-size: 0.8em;" title="Dirección I2C">`;
+                    extraHTML = `<input type="number" step="1" id="customSensorAngle_${idx}${isClone ? '_sym' : ''}" value="${dispAngle}" placeholder="Ángulo (°)" style="width: 50px; font-size: 0.8em;" title="Ángulo" ${isClone ? 'disabled' : ''}>
+                                 <input type="number" step="1" id="customSensorConeAngle_${idx}${isClone ? '_sym' : ''}" value="${sensor.coneAngle || 15}" placeholder="Cono (°)" style="width: 50px; font-size: 0.8em;" title="Cono de Detección (°)" ${isClone ? 'disabled' : ''}>
+                                 <input type="number" step="1" id="customSensorMaxDist_${idx}${isClone ? '_sym' : ''}" value="${sensor.maxDistance || 500}" placeholder="Máx (mm)" style="width: 50px; font-size: 0.8em;" title="Distancia Máxima (mm)" ${isClone ? 'disabled' : ''}>
+                                 <input type="text" id="customSensorI2C_${idx}${isClone ? '_sym' : ''}" value="${isClone ? (sensor.i2cAddressSym || '0x2A') : (sensor.i2cAddress || '0x29')}" placeholder="I2C" style="width: 40px; font-size: 0.8em;" title="Dirección I2C">`;
+                } else if (sensor.type === 'hcsr04') {
+                    let dispAngle = sensor.angle || 0;
+                    if (isClone) {
+                        dispAngle = 180 - dispAngle;
+                        if (dispAngle > 180) dispAngle -= 360;
+                    }
+                    extraHTML = `<input type="number" step="1" id="customSensorAngle_${idx}${isClone ? '_sym' : ''}" value="${dispAngle}" placeholder="Ángulo (°)" style="width: 60px; font-size: 0.8em;" title="Ángulo" ${isClone ? 'disabled' : ''}>
+                                 <input type="number" step="1" id="customSensorConeAngle_${idx}${isClone ? '_sym' : ''}" value="${sensor.coneAngle || 30}" placeholder="Cono (°)" style="width: 60px; font-size: 0.8em;" title="Cono de Detección (°)" ${isClone ? 'disabled' : ''}>
+                                 <input type="number" step="1" id="customSensorMaxDist_${idx}${isClone ? '_sym' : ''}" value="${sensor.maxDistance || 4000}" placeholder="Máx (mm)" style="width: 60px; font-size: 0.8em;" title="Distancia Máxima (mm)" ${isClone ? 'disabled' : ''}>`;
                 } else if (sensor.type === 'rgb' || sensor.type === 'rfid' || sensor.type === 'led') {
                     extraHTML = `<input type="number" step="1" id="customSensorDiam_${idx}${isClone ? '_sym' : ''}" value="${sensor.detectionDiameter || 50}" placeholder="Diám. (mm)" style="width: 70px; font-size: 0.8em;" title="Diámetro" ${isClone ? 'disabled' : ''}>`;
                     if (sensor.type === 'led') {
@@ -662,6 +678,7 @@ export function initRobotEditor(appInterface) {
                 else if (sensor.type === 'rgb') typeLabel = "Color RGB";
                 else if (sensor.type === 'rfid') typeLabel = "RFID";
                 else if (sensor.type === 'tof') typeLabel = "ToF";
+                else if (sensor.type === 'hcsr04') typeLabel = "HC-SR04";
                 else if (sensor.type === 'led') typeLabel = "LED";
                 else if (sensor.type === 'screen') typeLabel = "OLED";
 
@@ -700,13 +717,15 @@ export function initRobotEditor(appInterface) {
             let inAngle = null;
             let inDiam = null;
             let inCol = null;
-            let inMaxDist = null;
-            let inI2C = null;
+              let inMaxDist = null;
+              let inConeAngle = null;
+              let inI2C = null;
               let inNumPins = null;
-              if (sensor.type === 'tof') {
+              if (sensor.type === 'tof' || sensor.type === 'hcsr04') {
                   inAngle = mainItem.querySelector(`#customSensorAngle_${idx}`);
                   inMaxDist = mainItem.querySelector(`#customSensorMaxDist_${idx}`);
-                  inI2C = mainItem.querySelector(`#customSensorI2C_${idx}`);
+                  inConeAngle = mainItem.querySelector(`#customSensorConeAngle_${idx}`);
+                  if (sensor.type === 'tof') inI2C = mainItem.querySelector(`#customSensorI2C_${idx}`);
               }
               if (sensor.type === 'rgb' || sensor.type === 'rfid' || sensor.type === 'led') inDiam = mainItem.querySelector(`#customSensorDiam_${idx}`);
               if (sensor.type === 'led') inCol = mainItem.querySelector(`#customSensorColor_${idx}`);
@@ -722,6 +741,7 @@ export function initRobotEditor(appInterface) {
                   currentGeometry.customSensors[idx].y_mm = parseFloat(inY.value) || 0;
                   if (inAngle) currentGeometry.customSensors[idx].angle = parseFloat(inAngle.value) || 0;
                   if (inMaxDist) currentGeometry.customSensors[idx].maxDistance = parseFloat(inMaxDist.value) || 500;
+                  if (inConeAngle) currentGeometry.customSensors[idx].coneAngle = parseFloat(inConeAngle.value) || 0;
                   if (inI2C) currentGeometry.customSensors[idx].i2cAddress = inI2C.value || '0x29';
                   if (inDiam) currentGeometry.customSensors[idx].detectionDiameter = parseFloat(inDiam.value) || 0;
                   if (inCol) currentGeometry.customSensors[idx].color = inCol.value;
@@ -743,6 +763,10 @@ export function initRobotEditor(appInterface) {
                              const cM = cloneItem.querySelector(`#customSensorMaxDist_${idx}_sym`);
                              if (cM) cM.value = currentGeometry.customSensors[idx].maxDistance || 500;
                          }
+                         if (inConeAngle) {
+                             const cC = cloneItem.querySelector(`#customSensorConeAngle_${idx}_sym`);
+                             if (cC) cC.value = currentGeometry.customSensors[idx].coneAngle || 0;
+                         }
                          if (inDiam) {
                              const cD = cloneItem.querySelector(`#customSensorDiam_${idx}_sym`);
                              if (cD) cD.value = currentGeometry.customSensors[idx].detectionDiameter || 0;
@@ -763,6 +787,7 @@ export function initRobotEditor(appInterface) {
             }
             if (inAngle) inAngle.addEventListener('input', updateVal);
             if (inMaxDist) inMaxDist.addEventListener('input', updateVal);
+            if (inConeAngle) inConeAngle.addEventListener('input', updateVal);
             if (inI2C) inI2C.addEventListener('input', updateVal);
             if (inDiam) inDiam.addEventListener('input', updateVal);
             if (inCol) inCol.addEventListener('input', updateVal);
@@ -877,7 +902,17 @@ export function initRobotEditor(appInterface) {
                 if (iter > 10) break; // fallback emergency
             }
 
-            currentGeometry.customSensors.push({ type: 'tof', x_mm: 50, y_mm: 0, angle: 0, maxDistance: 500, i2cAddress: currentI2C, i2cAddressSym: currentI2CSym }); 
+            currentGeometry.customSensors.push({ type: 'tof', x_mm: 50, y_mm: 0, angle: 0, coneAngle: 15, maxDistance: 500, i2cAddress: currentI2C, i2cAddressSym: currentI2CSym }); 
+            renderCustomSensorsList();
+            updateSensorConnectionsUI(currentGeometry.sensorCount);
+            window.forceGeometrySync();
+        });
+    }
+
+    if (elems.addHCSR04Btn) {
+        elems.addHCSR04Btn.addEventListener('click', () => {
+            if (!currentGeometry.customSensors) currentGeometry.customSensors = [];
+            currentGeometry.customSensors.push({ type: 'hcsr04', x_mm: 50, y_mm: 0, angle: 0, coneAngle: 30, maxDistance: 4000 }); 
             renderCustomSensorsList();
             updateSensorConnectionsUI(currentGeometry.sensorCount);
             window.forceGeometrySync();

@@ -1,11 +1,11 @@
 {
   "geometry": {
-    "arduinoBoard": "mega",
+    "arduinoBoard": "uno",
     "width_m": 0.095,
     "sensorOffset_m": 0.09,
     "sensorSpread_m": 0.015,
     "sensorDiameter_m": 0.02,
-    "sensorCount": 1,
+    "sensorCount": 0,
     "robotMass_kg": 0.38,
     "comOffset_m": 0,
     "tireGrip": 0.8,
@@ -18,53 +18,41 @@
     "panelButtons": [],
     "customSensors": [
       {
-        "type": "tof",
+        "type": "hcsr04",
         "x_mm": 97,
         "y_mm": 0,
         "angle": 0,
-        "maxDistance": 500,
-        "i2cAddress": "0x29",
-        "i2cAddressSym": "0x2A",
+        "coneAngle": 25,
+        "maxDistance": 4000,
         "symmetric": false
       },
       {
-        "type": "tof",
+        "type": "hcsr04",
         "x_mm": 50,
         "y_mm": 32,
         "angle": 60,
-        "maxDistance": 500,
-        "i2cAddress": "0x2B",
-        "i2cAddressSym": "0x2C",
+        "coneAngle": 25,
+        "maxDistance": 4000,
         "symmetric": false
       },
       {
-        "type": "tof",
+        "type": "hcsr04",
         "x_mm": 50,
         "y_mm": -32,
         "angle": -60,
-        "maxDistance": 500,
-        "i2cAddress": "0x2D",
-        "i2cAddressSym": "0x2E",
+        "coneAngle": 25,
+        "maxDistance": 4000,
         "symmetric": false
       }
     ],
     "connections": {
       "sensorPins": {
-        "fullFarLeft": "",
-        "farLeft": "",
-        "left": "22",
-        "center": "23",
-        "centerLeft": "",
-        "centerRight": "",
-        "right": "24",
-        "farRight": "",
-        "fullFarRight": "",
-        "custom_0_SDA": "20",
-        "custom_0_SCL": "21",
-        "custom_1_SDA": "20",
-        "custom_1_SCL": "21",
-        "custom_2_SDA": "20",
-        "custom_2_SCL": "21"
+        "custom_0_Trig": "9",
+        "custom_0_Echo": "10",
+        "custom_1_Trig": "11",
+        "custom_1_Echo": "12",
+        "custom_2_Trig": "3",
+        "custom_2_Echo": "4"
       },
       "driverType": "l298n",
       "motorPins": {
@@ -78,34 +66,5 @@
     },
     "horizontalSymmetry": false
   },
-  "parts": [
-    {
-      "id": "chassis2",
-      "name": "Chassis 2",
-      "x": 0.00010743144914215463,
-      "y": -0.018834967320261426,
-      "rotation": 0
-    },
-    {
-      "id": "arduino_uno",
-      "name": "Arduino Uno",
-      "x": -0.002676882276348039,
-      "y": -0.01697875816993465,
-      "rotation": 0
-    },
-    {
-      "id": "18650",
-      "name": "Batería 18650",
-      "x": 0.00010743144914218305,
-      "y": 0.02200163398692814,
-      "rotation": 1.5707963267948966
-    },
-    {
-      "id": "18650",
-      "name": "Batería 18650",
-      "x": -0.0008206731260212337,
-      "y": 0.042419934640522856,
-      "rotation": 1.5707963267948966
-    }
-  ]
+  "parts": []
 }

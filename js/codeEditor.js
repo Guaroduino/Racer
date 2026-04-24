@@ -287,6 +287,55 @@ const normalizePin = (pin) => {
     return pin;
 };
 
+class MockNewPing {
+    constructor(trigger_pin, echo_pin, max_cm_distance = 500) {
+        this.triggerPin = parseInt(trigger_pin);
+        this.echoPin = parseInt(echo_pin);
+        this.maxDistanceCm = parseInt(max_cm_distance);
+    }
+    
+    async ping() {
+        await arduinoAPI.delay(30);
+        let distMm = this._getDistanceMm();
+        let distCm = distMm / 10;
+        if (distCm > this.maxDistanceCm || distMm >= 4000) return 0;
+        return Math.round(distMm * 5.8); 
+    }
+    
+    async ping_cm() {
+        await arduinoAPI.delay(30);
+        let distMm = this._getDistanceMm();
+        let distCm = distMm / 10;
+        if (distCm > this.maxDistanceCm || distMm >= 4000) return 0;
+        return Math.round(distCm);
+    }
+    
+    async ping_in() {
+        await arduinoAPI.delay(30);
+        let distMm = this._getDistanceMm();
+        let distCm = distMm / 10;
+        if (distCm > this.maxDistanceCm || distMm >= 4000) return 0;
+        return Math.round(distCm / 2.54);
+    }
+    
+    _getDistanceMm() {
+        if (!sharedSimulationState || !sharedSimulationState.robot || !sharedSimulationState.robot.connections) return 4000;
+        let sensorIdx = -1;
+        for (const [key, p] of Object.entries(sharedSimulationState.robot.connections.sensorPins)) {
+            if (resolveUIPin(p) === this.echoPin && key.startsWith('custom_') && key.endsWith('_Echo')) {
+                sensorIdx = parseInt(key.replace('custom_', '').replace('_Echo', ''));
+                break;
+            }
+        }
+        if (sensorIdx >= 0) {
+            let dist_mm = sharedSimulationState.robot.sensors[`custom_${sensorIdx}_distance_mm`];
+            if (dist_mm === undefined) return 4000;
+            return dist_mm;
+        }
+        return 4000;
+    }
+}
+
 function resolveSensorValueByPin(pin, sensorPinMap, robotSensors) {
     const normalizedPin = normalizePin(pin);
     if (!Number.isFinite(normalizedPin) || !sensorPinMap || !robotSensors) return { value: 0, key: null };
@@ -534,6 +583,27 @@ const arduinoAPI = {
             }, ms);
         });
     },
+    pulseIn: async (pin, state, timeout) => {
+        pin = normalizePin(pin);
+        await arduinoAPI.delay(30); // HC-SR04 typical block time
+        
+        if (!sharedSimulationState || !sharedSimulationState.robot || !sharedSimulationState.robot.connections) return 0;
+        
+        let sensorIdx = -1;
+        for (const [key, p] of Object.entries(sharedSimulationState.robot.connections.sensorPins)) {
+            if (resolveUIPin(p) === pin && key.startsWith('custom_') && key.endsWith('_Echo')) {
+                sensorIdx = parseInt(key.replace('custom_', '').replace('_Echo', ''));
+                break;
+            }
+        }
+        
+        if (sensorIdx >= 0) {
+            let dist_mm = sharedSimulationState.robot.sensors[`custom_${sensorIdx}_distance_mm`];
+            if (dist_mm === undefined) dist_mm = 4000;
+            return Math.round(dist_mm * 5.8);
+        }
+        return 0;
+    },
     Serial: ArduinoSerial,
     Wire: {
         begin: () => { }
@@ -545,6 +615,7 @@ const arduinoAPI = {
     MockMFRC522,
     MockAdafruitTCS34725,
     MockAdafruitVL53L0X,
+    MockNewPing,
     // Common library constants used by sample sketches.
     SSD1306_SWITCHCAPVCC: 0x02,
     TCS34725_INTEGRATIONTIME_2_4MS: 0,
@@ -720,6 +791,7 @@ function traducirArduinoAJS(codigoArduino) {
         .replace(/\bAdafruit_SSD1306\s+(\w+)\s*=\s*Adafruit_SSD1306\s*\(([^;]*)\)\s*;/g, (_, name, args) => `let ${name} = new MockAdafruitSSD1306(${args});`)
         .replace(/\bMFRC522\s+(\w+)\s*\(([^;]*)\)\s*;/g, 'let $1 = new MockMFRC522($2);')
         .replace(/\bMFRC522\s+(\w+)\s*=\s*MFRC522\s*\(([^;]*)\)\s*;/g, 'let $1 = new MockMFRC522($2);')
+        .replace(/\bNewPing\s+(\w+)\s*\(([^;]*)\)\s*;/g, 'let $1 = new MockNewPing($2);')
         .replace(/\bAdafruit_TCS34725\s+(\w+)\s*=\s*Adafruit_TCS34725\s*\(([^;]*)\)\s*;/g, 'let $1 = new MockAdafruitTCS34725($2);')
         .replace(/\bAdafruit_TCS34725\s+(\w+)\s*\(([^;]*)\)\s*;/g, 'let $1 = new MockAdafruitTCS34725($2);')
         .replace(/\bAdafruit_TCS34725\s+(\w+)\s*;/g, 'let $1 = new MockAdafruitTCS34725();')
@@ -757,8 +829,13 @@ function traducirArduinoAJS(codigoArduino) {
         .replace(CONST_RE, 'const')
         // "int" -> "let"
         .replace(TYPE_RE, 'let')
-        // delay(X) -> await delay(X)
+        // Asegurar awaits para delay, yield y pulseIn
         .replace(/\bdelay\s*\(/g, 'await delay(')
+        .replace(/\bpulseIn\s*\(/g, 'await pulseIn(')
+        // Funciones NewPing a await
+        .replace(/\b([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*\.\s*ping\s*\(/g, 'await $1.ping(')
+        .replace(/\b([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*\.\s*ping_cm\s*\(/g, 'await $1.ping_cm(')
+        .replace(/\b([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*\.\s*ping_in\s*\(/g, 'await $1.ping_in(')
         // MÁS SEGURO: Soporte para while(condicion); vacío
         .replace(/\b(while|for)\s*\(([^)]*)\)\s*;/g, '$1 ($2) { await delay(1); }')
         // MÁS SEGURO: Inyectar await delay(1) en bucles while/for con llaves

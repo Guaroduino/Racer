@@ -698,12 +698,12 @@ export class Simulation {
                     if (cSens.detectionDiameter) {
                         physicsRadiusPx = Math.max(1, (parseFloat(cSens.detectionDiameter) / 1000 / 2) * PIXELS_PER_METER);
                     }
-                    if (cSens.type === 'tof' || cSens.type === 'rgb' || cSens.type === 'rfid' || cSens.type === 'led' || cSens.type === 'screen') {
+                    if (cSens.type === 'tof' || cSens.type === 'hcsr04' || cSens.type === 'rgb' || cSens.type === 'rfid' || cSens.type === 'led' || cSens.type === 'screen') {
                         if (cSens.type === 'led' || cSens.type === 'screen') {
                             isOutputSensor = true;
                         }
-                        if (cSens.type === 'tof') {
-                            const customMaxDist_mm = cSens.maxDistance || 500;
+                        if (cSens.type === 'tof' || cSens.type === 'hcsr04') {
+                            const customMaxDist_mm = cSens.maxDistance || (cSens.type === 'hcsr04' ? 4000 : 500);
                             const maxDist_px = (customMaxDist_mm / 1000) * PIXELS_PER_METER;
                             
                             let absoluteAngle_rad = this.robot.angle_rad + (cSens.angle || 0) * Math.PI / 180;
@@ -711,17 +711,34 @@ export class Simulation {
                                 absoluteAngle_rad = this.robot.angle_rad + (180 - (cSens.angle || 0)) * Math.PI / 180;
                             }
                             
-                            const measuredDist_px = this._raycastObstacles(px, py, absoluteAngle_rad, maxDist_px);
-                            const measuredDist_mm = (measuredDist_px / PIXELS_PER_METER) * 1000;
+                            let coneAngle_rad = (cSens.coneAngle || 0) * Math.PI / 180;
+                            let minMeasuredDist_px = maxDist_px;
+                            let rays = (coneAngle_rad > 0) ? 5 : 1;
+                            
+                            if (rays === 1) {
+                                minMeasuredDist_px = this._raycastObstacles(px, py, absoluteAngle_rad, maxDist_px);
+                            } else {
+                                let angleStep = coneAngle_rad / (rays - 1);
+                                let startAngle = absoluteAngle_rad - coneAngle_rad / 2;
+                                for (let r = 0; r < rays; r++) {
+                                    let rayAngle = startAngle + r * angleStep;
+                                    let dist = this._raycastObstacles(px, py, rayAngle, maxDist_px);
+                                    if (dist < minMeasuredDist_px) minMeasuredDist_px = dist;
+                                }
+                            }
+
+                            const measuredDist_mm = (minMeasuredDist_px / PIXELS_PER_METER) * 1000;
                             
                             // Store generic distance
                             this.robot.sensors[key + '_distance_mm'] = measuredDist_mm;
                             
-                            // Update shared tofMm (for codeEditor backward compatibility, keeps smallest if multiple exist)
-                            if (typeof this.robot.sensors.tofMm !== 'number') {
-                                this.robot.sensors.tofMm = measuredDist_mm;
-                            } else {
-                                this.robot.sensors.tofMm = Math.min(this.robot.sensors.tofMm, measuredDist_mm);
+                            // Update shared tofMm
+                            if (cSens.type === 'tof') {
+                                if (typeof this.robot.sensors.tofMm !== 'number') {
+                                    this.robot.sensors.tofMm = measuredDist_mm;
+                                } else {
+                                    this.robot.sensors.tofMm = Math.min(this.robot.sensors.tofMm, measuredDist_mm);
+                                }
                             }
                         }
                         if (cSens.type === 'rfid') {

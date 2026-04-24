@@ -1,152 +1,117 @@
 // Esquemas de código
 const codeTemplates = {
-        simpleOnOff: `#include <SPI.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-#include <Adafruit_VL53L0X.h>
+        simpleOnOff: `#include <NewPing.h>
 
 // ====================================================================
-// 1. CONFIGURACION Y PINES (MOTORES)
+// 1. CONFIGURACION DE PINES MOTORES (L298N simple sin PWM Enable)
 // ====================================================================
+// Motor Izquierdo
 const int IN1 = 5;
 const int IN2 = 6;
+// Motor Derecho
 const int IN3 = 7;
 const int IN4 = 8;
 
-Adafruit_SSD1306 pantalla(128, 64, &Wire, -1);
+// ====================================================================
+// 2. CONFIGURACION ULTRASONIDOS (HC-SR04)
+// ====================================================================
+#define MAX_DIST 400
+
+// HC-SR04 Frontal
+const int TRG_F = 9;
+const int ECH_F = 10;
+NewPing us_Frontal(TRG_F, ECH_F, MAX_DIST);
+
+// HC-SR04 Derecho
+const int TRG_D = 11;
+const int ECH_D = 12;
+NewPing us_Derecho(TRG_D, ECH_D, MAX_DIST);
+
+// HC-SR04 Izquierdo
+const int TRG_I = 3;
+const int ECH_I = 4;
+NewPing us_Izquierdo(TRG_I, ECH_I, MAX_DIST);
 
 // ====================================================================
-// 2. OBJETOS Y DIRECCIONES TOF
+// 3. VARIABLES DE NAVEGACION (Pared Derecha)
 // ====================================================================
-Adafruit_VL53L0X tof_Frente   = Adafruit_VL53L0X(); // Adelante (0x29)
-Adafruit_VL53L0X tof_DelDer   = Adafruit_VL53L0X(); // Delantero Derecho (0x2B)
-Adafruit_VL53L0X tof_DelIzq   = Adafruit_VL53L0X(); // Delantero Izq (0x2D)
+int velBase = 150;      
+int distParedEsperada = 20; // cm a la pared derecha
+int distFreno = 25;         // cm para esquivar pared frontal
+float Kp = 10.0;            // Ganancia Proporcional
 
-// ====================================================================
-// 3. PARAMETROS DEL NAVEGADOR MATEMATICO (PISTA 200mm)
-// ====================================================================
-int velocidadMaxima = 170;
-float Kp = 0.8;
-float Kd = 1.2;
-int maxGiro = 65;
-
-int ultimoError = 0;
-unsigned long timerPantalla = 0;
-
-// ====================================================================
-// 4. FUNCIONES DE TRACCION
-// ====================================================================
-void aplicarMotores(int vL, int vR) {
-    if (vL >= 0) { analogWrite(IN1, vL); analogWrite(IN2, 0); }
-    else { analogWrite(IN1, 0); analogWrite(IN2, -vL); }
-
-    if (vR >= 0) { analogWrite(IN3, vR); analogWrite(IN4, 0); }
-    else { analogWrite(IN3, 0); analogWrite(IN4, -vR); }
-}
-
-// ====================================================================
-// 5. INICIALIZACION
-// ====================================================================
 void setup() {
-    pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
-    pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
+  pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
 
-    Serial.begin(9600);
-    Wire.begin();
-    pantalla.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-
-    pantalla.clearDisplay();
-    pantalla.setCursor(0, 0);
-    pantalla.println("PISTA 200 mm");
-    pantalla.println("MIN TOF: 50 mm");
-    pantalla.display();
-
-    if(!tof_Frente.begin(0x29)) Serial.println("Error ToF Frente");
-    if(!tof_DelDer.begin(0x2B)) Serial.println("Error ToF DelDer");
-    if(!tof_DelIzq.begin(0x2D)) Serial.println("Error ToF DelIzq");
-
-    delay(1000);
+  Serial.begin(9600);
+  delay(500);
 }
 
-// ====================================================================
-// 6. BUCLE PRINCIPAL (CINEMATICA DIFERENCIAL)
-// ====================================================================
 void loop() {
-    delay(30);
-    // 1. Leer el entorno
-    int distFrente = tof_Frente.readRange();
-    int distDer = tof_DelDer.readRange();
-    int distIzq = tof_DelIzq.readRange();
+  // LECTURA DE SENSORES EN CM
+  int d_frt = us_Frontal.ping_cm();
+  int d_der = us_Derecho.ping_cm();
+  int d_izq = us_Izquierdo.ping_cm();
 
-    // ------------------------------------------------------------------
-    // FILTRADO DE RUIDO Y ZONA CIEGA (50 mm)
-    // ------------------------------------------------------------------
-    // Si da error (0) o entra en la zona ciega (< 50), lo "chocamos" virtualmente a 50mm
-    if (distFrente < 30) distFrente = 30;
-    if (distFrente > 800) distFrente = 800;
+  // NewPing devuelve 0 si no hay eco (obstaculo demasiado lejos).
+  // Lo forzamos a una distancia grande.
+  if (d_frt == 0) d_frt = MAX_DIST;
+  if (d_der == 0) d_der = MAX_DIST;
+  if (d_izq == 0) d_izq = MAX_DIST;
 
-    if (distDer < 30) distDer = 30;
-    if (distDer > 200) distDer = 200;
+  // LOGICA SENSORIAL
+  // A. Pared al Frente: Prioridad 1
+  if (d_frt < distFreno) {
+     // Girar bruscamente a la izquierda sobre su propio eje
+     aplicarMotores(-150, 150);
+  }
+  else {
+     // B. Seguidor de pared derecha activado
+     if (d_der < 100) { 
+        int error = distParedEsperada - d_der; 
+        int correccion = error * Kp;
+        
+        // Si error > 0 (muy cerca) correccion es +, frena motor derecho
+        int vI = velBase + correccion;
+        int vD = velBase - correccion;
+        
+        aplicarMotores(vI, vD);
+     }
+     else {
+        // C. No hay pared derecha -> Curvar hacia la pared
+        aplicarMotores(180, 80); 
+     }
+  }
 
-    if (distIzq < 30) distIzq = 30;
-    if (distIzq > 200) distIzq = 200;
+  Serial.print("F:"); Serial.print(d_frt);
+  Serial.print(" | D:"); Serial.println(d_der);
 
-    // ------------------------------------------------------------------
-    // A. CALCULAR VELOCIDAD LINEAL (AVANCE)
-    // ------------------------------------------------------------------
-    int vAvance = velocidadMaxima;
-    // Frena cuando la pared esta a menos de 180mm
-    if (distFrente < 180) {
-        // Ahora el mapa termina en 50mm. Si esta a 50mm o menos, vAvance sera 0.
-        vAvance = map(distFrente, 50, 180, 0, velocidadMaxima);
-        vAvance = constrain(vAvance, 0, velocidadMaxima);
-    }
-
-    // ------------------------------------------------------------------
-    // B. CALCULAR VELOCIDAD ANGULAR (GIRO CON PD)
-    // ------------------------------------------------------------------
-    int error = distDer - distIzq;
-    float proporcion = error * Kp;
-    float derivada = (error - ultimoError) * Kd;
-    int correccionGiro = (int)(proporcion + derivada);
-    ultimoError = error;
-
-    correccionGiro = constrain(correccionGiro, -maxGiro, maxGiro);
-
-    // ------------------------------------------------------------------
-    // C. MEZCLA CINEMATICA (BLENDING)
-    // ------------------------------------------------------------------
-    int vIzq = vAvance + correccionGiro;
-    int vDer = vAvance - correccionGiro;
-
-    vIzq = constrain(vIzq, -30, 150);
-    vDer = constrain(vDer, -30, 150);
-
-    aplicarMotores(vIzq, vDer);
-
-    actualizarPantallaDinamica(distFrente, error, vAvance, vIzq, vDer);
+  delay(30); 
 }
 
-// ====================================================================
-// 7. FUNCIONES DE PANTALLA
-// ====================================================================
-void actualizarPantallaDinamica(int f, int err, int vAv, int vI, int vD) {
-    if (millis() - timerPantalla > 150) {
-        timerPantalla = millis();
-        pantalla.clearDisplay();
-        pantalla.setCursor(0, 0);
-        pantalla.println("= 200mm TRACK =");
-        pantalla.print("Frente: "); pantalla.print(f); pantalla.println(" mm");
-        pantalla.print("V.Avance: "); pantalla.println(vAv);
+// Control de L298N simulando PWM en pines IN
+void aplicarMotores(int vL, int vR) {
+  vL = constrain(vL, -255, 255);
+  vR = constrain(vR, -255, 255);
 
-        pantalla.println("-------------");
-        pantalla.print("M.Izq: "); pantalla.print(vI);
-        pantalla.print(" | M.Der: "); pantalla.println(vD);
-        pantalla.display();
-    }
-}`
-};
+  if (vL >= 0) {
+    analogWrite(IN1, vL);
+    digitalWrite(IN2, LOW);
+  } else {
+    digitalWrite(IN1, LOW);
+    analogWrite(IN2, abs(vL));
+  }
+
+  if (vR >= 0) {
+    analogWrite(IN3, vR);
+    digitalWrite(IN4, LOW);
+  } else {
+    digitalWrite(IN3, LOW);
+    analogWrite(IN4, abs(vR));
+  }
+}\`
+};;
 
 // Textos explicativos para cada plantilla
 const codeExplanations = {

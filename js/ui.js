@@ -83,6 +83,7 @@ export function getDOMElements() {
         addRFIDReaderBtn: document.getElementById('addRFIDReaderBtn'),
         addColorSensorBtn: document.getElementById('addColorSensorBtn'),
         addDistanceSensorBtn: document.getElementById('addDistanceSensorBtn'),
+        addHCSR04Btn: document.getElementById('addHCSR04Btn'),
         editorSymmetryBtn: document.getElementById('editorSymmetryBtn'),
         customPartDialog: document.getElementById('customPartDialog'),
         customPartForm: document.getElementById('customPartForm'),

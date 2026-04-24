@@ -1,88 +1,98 @@
-﻿#include <Wire.h>
-#include <Adafruit_VL53L0X.h>
+#include <NewPing.h>
 
 // ====================================================================
-// 1. CONFIGURACION DE PINES
+// 1. CONFIGURACION DE PINES MOTORES (L298N simple sin PWM Enable)
 // ====================================================================
+// Motor Izquierdo
 const int IN1 = 5;
 const int IN2 = 6;
+// Motor Derecho
 const int IN3 = 7;
 const int IN4 = 8;
 
-Adafruit_VL53L0X tof_Frente = Adafruit_VL53L0X(); 
-Adafruit_VL53L0X tof_Der    = Adafruit_VL53L0X(); 
-Adafruit_VL53L0X tof_Izq    = Adafruit_VL53L0X(); 
+// ====================================================================
+// 2. CONFIGURACION ULTRASONIDOS (HC-SR04)
+// ====================================================================
+#define MAX_DIST 400
+
+// HC-SR04 Frontal
+const int TRG_F = 9;
+const int ECH_F = 10;
+NewPing us_Frontal(TRG_F, ECH_F, MAX_DIST);
+
+// HC-SR04 Derecho
+const int TRG_D = 11;
+const int ECH_D = 12;
+NewPing us_Derecho(TRG_D, ECH_D, MAX_DIST);
+
+// HC-SR04 Izquierdo
+const int TRG_I = 3;
+const int ECH_I = 4;
+NewPing us_Izquierdo(TRG_I, ECH_I, MAX_DIST);
 
 // ====================================================================
-// 2. VARIABLES DE AJUSTE
+// 3. VARIABLES DE NAVEGACION (Pared Derecha)
 // ====================================================================
-int velBase = 130;      
-int rangoMax = 100;     
-int distFreno = 200;    
-float gananciaBase = 30.0; // Ganancia cuando va a velocidad maxima
+int velBase = 150;      
+int distParedEsperada = 20; // cm a la pared derecha
+int distFreno = 25;         // cm para esquivar pared frontal
+float Kp = 10.0;            // Ganancia Proporcional
 
 void setup() {
   pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
 
-  Serial.begin(115200);
-  Wire.begin();
-
-  if(!tof_Frente.begin(0x29)) Serial.println("Error ToF Frente");
-  if(!tof_Der.begin(0x2B))    Serial.println("Error ToF Derecho");
-  if(!tof_Izq.begin(0x2D))    Serial.println("Error ToF Izquierdo");
-
+  Serial.begin(9600);
   delay(500);
 }
 
 void loop() {
-  // Simulacion del delay de 3 sensores HC-SR04 (segun tu consulta)
-  delay(60); 
+  // LECTURA DE SENSORES EN CM
+  int d_frt = us_Frontal.ping_cm();
+  int d_der = us_Derecho.ping_cm();
+  int d_izq = us_Izquierdo.ping_cm();
 
-  // --- 1. LECTURA DE SENSORES ---
-  int d_frt = tof_Frente.readRange();
-  int d_der = tof_Der.readRange();
-  int d_izq = tof_Izq.readRange();
+  // NewPing devuelve 0 si no hay eco (obstaculo demasiado lejos).
+  // Lo forzamos a una distancia grande.
+  if (d_frt == 0) d_frt = MAX_DIST;
+  if (d_der == 0) d_der = MAX_DIST;
+  if (d_izq == 0) d_izq = MAX_DIST;
 
-  // --- 2. LOGICA DE FRENADO FRONTAL ---
-  float factorVel = 1.0;
+  // LOGICA SENSORIAL
+  // A. Pared al Frente: Prioridad 1
   if (d_frt < distFreno) {
-    factorVel = (float)d_frt / distFreno; 
+     // Girar bruscamente a la izquierda sobre su propio eje
+     aplicarMotores(-150, 150);
   }
-  // Mantenemos un minimo de 0.3 para que no se bloquee la division posterior
-  factorVel = constrain(factorVel, 0.3, 1.0); 
-  
-  int velActual = velBase * factorVel;
-
-  // --- 3. LOGICA DE SEGUIMIENTO (ERROR LATERAL) ---
-  int errorRaw = d_izq - d_der; 
-  float correccionNorm = (float)errorRaw / rangoMax;
-  correccionNorm = constrain(correccionNorm, -1.0, 1.0);
-
-  // --- 4. GANANCIA ADAPTATIVA ---
-  // A medida que factorVel baja (hay algo enfrente), la ganancia sube.
-  // Ejemplo: Si factorVel es 0.5, la ganancia se duplica.
-  float gananciaDinamica = gananciaBase / factorVel;
-
-  int vI = velActual - (correccionNorm * gananciaDinamica); 
-  int vD = velActual + (correccionNorm * gananciaDinamica); 
-
-  // --- 5. APLICAR MOTORES Y LOG ---
-  aplicarMotores(vI, vD);
+  else {
+     // B. Seguidor de pared derecha activado
+     if (d_der < 100) { 
+        int error = distParedEsperada - d_der; 
+        int correccion = error * Kp;
+        
+        // Si error > 0 (muy cerca) correccion es +, frena motor derecho
+        int vI = velBase + correccion;
+        int vD = velBase - correccion;
+        
+        aplicarMotores(vI, vD);
+     }
+     else {
+        // C. No hay pared derecha -> Curvar hacia la pared
+        aplicarMotores(180, 80); 
+     }
+  }
 
   Serial.print("F:"); Serial.print(d_frt);
-  Serial.print(" | Fact:"); Serial.print(factorVel);
-  Serial.print(" | Gan:"); Serial.print(gananciaDinamica);
-  Serial.print(" | vI:"); Serial.print(vI);
-  Serial.print(" | vD:"); Serial.println(vD);
+  Serial.print(" | D:"); Serial.println(d_der);
 
   delay(30); 
 }
 
-// Funcion de control de motores por PWM en pines IN
+// Control de L298N simulando PWM en pines IN
 void aplicarMotores(int vL, int vR) {
-  // Motor Izquierdo
   vL = constrain(vL, -255, 255);
+  vR = constrain(vR, -255, 255);
+
   if (vL >= 0) {
     analogWrite(IN1, vL);
     digitalWrite(IN2, LOW);
@@ -91,8 +101,6 @@ void aplicarMotores(int vL, int vR) {
     analogWrite(IN2, abs(vL));
   }
 
-  // Motor Derecho
-  vR = constrain(vR, -255, 255);
   if (vR >= 0) {
     analogWrite(IN3, vR);
     digitalWrite(IN4, LOW);

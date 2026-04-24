@@ -1220,27 +1220,28 @@ void loop() {
                         <input type="number" id="robotWidth" value="100" step="1" min="20">
                     </label>
 
-                    <label for="sensorOffset">
+                    <label for="sensorOffset" style="display: none;">
                         Offset Sensores Delante (mm):
                         <input type="number" id="sensorOffset" value="50" step="1" min="0">
                     </label>
 
-                    <label for="sensorSpread">
+                    <label for="sensorSpread" style="display: none;">
                         Separación Sensores Laterales (mm):
                         <input type="number" id="sensorSpread" value="30" step="1" min="0">
                     </label>
 
-                    <label for="sensorDiameter">
+                    <label for="sensorDiameter" style="display: none;">
                         Diámetro de Detección (mm):
                         <input type="number" id="sensorDiameter" value="5" step="0.5" min="1">
                     </label>
 
-                    <label style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <label style="display: none; flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <div style="display: flex; align-items: center;">
                             Número de Sensores IR:
                             <select id="sensorCount" style="margin-left: 8px;">
+                                <option value="0" selected>0</option>
                                 <option value="1">1</option>
-                                <option value="2" selected>2</option>
+                                <option value="2">2</option>
                                 <option value="3">3</option>
                                 <option value="4">4</option>
                                 <option value="5">5</option>
@@ -1256,7 +1257,7 @@ void loop() {
                     </label>
 
                     <div style="margin-top: 10px;">
-                        <div style="border: 1px solid var(--border-color); padding: 10px; margin-bottom: 15px; border-radius: 5px; background: rgba(0,0,0,0.02);">
+                        <div style="display: none; border: 1px solid var(--border-color); padding: 10px; margin-bottom: 15px; border-radius: 5px; background: rgba(0,0,0,0.02);">
 <div style="font-weight: bold; margin-bottom: 8px;">Panel de Control:</div>
 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
     <label style="display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer;">
@@ -1285,12 +1286,13 @@ void loop() {
 
                         <div style="font-weight: bold; margin-bottom: 5px;">Otros Componentes:</div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5em; margin-bottom: 0.5em;">
-                            <button id="addCustomSensorBtn" style="padding: 0.4em; font-size:0.8em;">+ IR Custom</button>
-                            <button id="addLEDBtn" style="padding: 0.4em; font-size:0.8em;" title="Añadir LED">+ LED</button>
-                            <button id="addScreenBtn" style="padding: 0.4em; font-size:0.8em;" title="Pantalla OLED">+ OLED</button>
-                            <button id="addRFIDReaderBtn" style="padding: 0.4em; font-size:0.8em;" title="Lector RFID">+ RFID</button>
+                            <button id="addCustomSensorBtn" style="display: none; padding: 0.4em; font-size:0.8em;">+ IR Custom</button>
+                            <button id="addLEDBtn" style="display: none; padding: 0.4em; font-size:0.8em;" title="Añadir LED">+ LED</button>
+                            <button id="addScreenBtn" style="display: none; padding: 0.4em; font-size:0.8em;" title="Pantalla OLED">+ OLED</button>
+                            <button id="addRFIDReaderBtn" style="display: none; padding: 0.4em; font-size:0.8em;" title="Lector RFID">+ RFID</button>
                             <button id="addColorSensorBtn" style="padding: 0.4em; font-size:0.8em;" title="Sensor de Color">+ RGB</button>
                             <button id="addDistanceSensorBtn" style="padding: 0.4em; font-size:0.8em;" title="Sensor de Distancia (ToF)">+ ToF</button>
+                            <button id="addHCSR04Btn" style="padding: 0.4em; font-size:0.8em;" title="Sensor Ultrasónico (HC-SR04)">+ HC-SR04</button>
                         </div>
                         <div id="customSensorsList" style="margin-top: 10px;"></div>
                     </div>
