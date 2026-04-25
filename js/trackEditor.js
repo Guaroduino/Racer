@@ -381,14 +381,18 @@ export function initTrackEditor(appInterface) {
 
     const clearTrackButton = document.getElementById('clearTrackButton');
     if (clearTrackButton) {
-        clearTrackButton.addEventListener('click', () => {
-            if (confirm('�Est�s seguro de que quieres limpiar toda la pista?')) {
+        clearTrackButton.onclick = () => {
+            console.log("[TrackEditor] Clear button clicked!");
+            if (confirm('¿Estás seguro de que quieres limpiar toda la pista?')) {
+                console.log("[TrackEditor] Clear confirmed, resetting grid and interactive elements...");
                 interactiveElements = [];
                 selectedInteractiveElement = null;
                 setupGrid();
                 renderEditor();
+            } else {
+                console.log("[TrackEditor] Clear cancelled.");
             }
-        });
+        };
     }
 
     elems.saveTrackDesignButton.addEventListener('click', saveTrackDesign);
@@ -427,7 +431,12 @@ export function initTrackEditor(appInterface) {
                 let lx = dx * Math.cos(angle) - dy * Math.sin(angle);
                 let ly = dx * Math.sin(angle) + dy * Math.cos(angle);
                 
-                const hs = TRANSFORM_HANDLE_HITBOX; // Hitbox in local track coordinate space
+                const cellSize = Math.min(
+                    editorCanvas.width / currentGridSize.cols,
+                    editorCanvas.height / currentGridSize.rows
+                );
+                const displayScale = trackZoom * (cellSize / TRACK_PART_SIZE_PX);
+                const hs = TRANSFORM_HANDLE_HITBOX / displayScale; // Hitbox dinámico para ser siempre clicable
                 const hs2 = hs * hs;
                 
                 // Rotation handle (Top center + offset)
@@ -441,7 +450,7 @@ export function initTrackEditor(appInterface) {
                     startElemX = el.x; startElemY = el.y;
                     startElemW = el.width; startElemH = el.height;
                     startRotAngle = el.rotation || 0;
-                    dragStartAngle = Math.atan2(p_y - cy, p_x - cx) * 180 / Math.PI;
+                    dragStartAngle = Math.atan2(p_y - cy, p_x - cx);
                     suppressNextClick = true;
                     return;
                 }
@@ -560,8 +569,8 @@ export function initTrackEditor(appInterface) {
                     s.ref.y = s.y + ddy;
                 });
             } else if (dragTransformMode === 'rotate') {
-                const curAngle = Math.atan2(p_y - startCy, p_x - startCx) * 180 / Math.PI;
-                const diffDeg = curAngle - dragStartAngle;
+                const curAngle = Math.atan2(p_y - startCy, p_x - startCx);
+                const diffDeg = (curAngle - dragStartAngle) * 180 / Math.PI;
                 const rad = diffDeg * Math.PI / 180;
                 const cosR = Math.cos(rad);
                 const sinR = Math.sin(rad);
@@ -580,53 +589,44 @@ export function initTrackEditor(appInterface) {
             } else if (dragTransformMode.startsWith('scale')) {
                 const dx = p_x - dragStartX;
                 const dy = p_y - dragStartY;
+                
                 const ldx = dx;
                 const ldy = dy;
 
-                let sW = startElemW;
-                let sH = startElemH;
+                let dw = 0;
+                let dh = 0;
 
-                if (['scale_t', 'scale_b', 'scale_l', 'scale_r'].includes(dragTransformMode)) {
-                    if (dragTransformMode === 'scale_l') sW = startElemW - ldx * 2;
-                    if (dragTransformMode === 'scale_r') sW = startElemW + ldx * 2;
-                    if (dragTransformMode === 'scale_t') sH = startElemH - ldy * 2;
-                    if (dragTransformMode === 'scale_b') sH = startElemH + ldy * 2;
-                } else {
-                    const halfW0 = Math.max(1, startElemW / 2);
-                    const halfH0 = Math.max(1, startElemH / 2);
-                    const nx = (p_x - startCx) / halfW0;
-                    const ny = (p_y - startCy) / halfH0;
-                    let dirX = 1;
-                    let dirY = 1;
-                    if (dragTransformMode === 'scale_tl') { dirX = -1; dirY = -1; }
-                    if (dragTransformMode === 'scale_tr') { dirX = 1; dirY = -1; }
-                    if (dragTransformMode === 'scale_bl') { dirX = -1; dirY = 1; }
-                    if (dragTransformMode === 'scale_br') { dirX = 1; dirY = 1; }
-                    const diagonalProjection = (nx * dirX + ny * dirY) / Math.SQRT2;
-                    const factor = Math.max(0.05, diagonalProjection / Math.SQRT2);
-                    sW = startElemW * factor;
-                    sH = startElemH * factor;
-                }
+                if (dragTransformMode === 'scale_l') dw = -ldx;
+                else if (dragTransformMode === 'scale_r') dw = ldx;
+                else if (dragTransformMode === 'scale_t') dh = -ldy;
+                else if (dragTransformMode === 'scale_b') dh = ldy;
+                else if (dragTransformMode === 'scale_tl') { dw = -ldx; dh = -ldy; }
+                else if (dragTransformMode === 'scale_tr') { dw = ldx; dh = -ldy; }
+                else if (dragTransformMode === 'scale_bl') { dw = -ldx; dh = ldy; }
+                else if (dragTransformMode === 'scale_br') { dw = ldx; dh = ldy; }
 
-                if (sH < 10) sH = 10;
-                if (sW < 10) sW = 10;
-
-                const scaleX = sW / Math.max(1, startElemW);
-                const scaleY = sH / Math.max(1, startElemH);
+                const scaleX = (startElemW + dw) / Math.max(1, startElemW);
+                const scaleY = (startElemH + dh) / Math.max(1, startElemH);
 
                 draggedGroupSnapshot.forEach(s => {
                     const scx = s.x + s.width / 2;
                     const scy = s.y + s.height / 2;
                     const rx = scx - startCx;
                     const ry = scy - startCy;
+                    
                     const ncx = startCx + rx * scaleX;
                     const ncy = startCy + ry * scaleY;
+                    
                     const nw = Math.max(1, s.width * scaleX);
                     const nh = Math.max(1, s.height * scaleY);
+                    
+                    const dcx = (dw / 2);
+                    const dcy = (dh / 2);
+
                     s.ref.width = nw;
                     s.ref.height = nh;
-                    s.ref.x = ncx - nw / 2;
-                    s.ref.y = ncy - nh / 2;
+                    s.ref.x = ncx - nw / 2 + dcx;
+                    s.ref.y = ncy - nh / 2 + dcy;
                 });
             }
 
@@ -641,64 +641,52 @@ export function initTrackEditor(appInterface) {
         } else if (dragTransformMode === 'rotate') {
             let cx = el.x + el.width / 2;
             let cy = el.y + el.height / 2;
-            let curAngle = Math.atan2(p_y - cy, p_x - cx) * 180 / Math.PI;
-            let diff = curAngle - dragStartAngle;
-            el.rotation = Math.round((startRotAngle + diff) / 1) * 1;
+            let angle_now = Math.atan2(p_y - cy, p_x - cx);
+            let diff = (angle_now - dragStartAngle) * 180 / Math.PI;
+            // Snap to 5 degrees
+            el.rotation = Math.round((startRotAngle + diff) / 5) * 5;
             const elems = getDOMElements();
             if (elems && elems.intSettRotation) elems.intSettRotation.value = el.rotation;
         } else if (dragTransformMode.startsWith('scale')) {
             let dx = p_x - dragStartX;
             let dy = p_y - dragStartY;
             
-            let angle = el.rotation ? -el.rotation * Math.PI / 180 : 0;
+            let angle = el.rotation * Math.PI / 180;
+            // Project global delta (dx, dy) onto the local rotated axes (projection dot products)
             let ldx = dx * Math.cos(angle) + dy * Math.sin(angle);
             let ldy = -dx * Math.sin(angle) + dy * Math.cos(angle);
 
-            let sW = startElemW;
-            let sH = startElemH;
+            let dw = 0;
+            let dh = 0;
 
-            if (['scale_t', 'scale_b', 'scale_l', 'scale_r'].includes(dragTransformMode)) {
-                if (dragTransformMode === 'scale_l') sW = startElemW - ldx * 2;
-                if (dragTransformMode === 'scale_r') sW = startElemW + ldx * 2;
-                if (dragTransformMode === 'scale_t') sH = startElemH - ldy * 2;
-                if (dragTransformMode === 'scale_b') sH = startElemH + ldy * 2;
-            } else {
-                // Uniform scale from corners using pointer projection on the
-                // active corner diagonal to better follow cursor drag intent.
-                const startCx = startElemX + startElemW / 2;
-                const startCy = startElemY + startElemH / 2;
-                const pdx = p_x - startCx;
-                const pdy = p_y - startCy;
-                const plx = pdx * Math.cos(angle) - pdy * Math.sin(angle);
-                const ply = pdx * Math.sin(angle) + pdy * Math.cos(angle);
+            if (dragTransformMode === 'scale_l') dw = -ldx;
+            else if (dragTransformMode === 'scale_r') dw = ldx;
+            else if (dragTransformMode === 'scale_t') dh = -ldy;
+            else if (dragTransformMode === 'scale_b') dh = ldy;
+            else if (dragTransformMode === 'scale_tl') { dw = -ldx; dh = -ldy; }
+            else if (dragTransformMode === 'scale_tr') { dw = ldx; dh = -ldy; }
+            else if (dragTransformMode === 'scale_bl') { dw = -ldx; dh = ldy; }
+            else if (dragTransformMode === 'scale_br') { dw = ldx; dh = ldy; }
 
-                const halfW0 = Math.max(1, startElemW / 2);
-                const halfH0 = Math.max(1, startElemH / 2);
-                const nx = plx / halfW0;
-                const ny = ply / halfH0;
-
-                let dirX = 1;
-                let dirY = 1;
-                if (dragTransformMode === 'scale_tl') { dirX = -1; dirY = -1; }
-                if (dragTransformMode === 'scale_tr') { dirX = 1; dirY = -1; }
-                if (dragTransformMode === 'scale_bl') { dirX = -1; dirY = 1; }
-                if (dragTransformMode === 'scale_br') { dirX = 1; dirY = 1; }
-
-                const diagonalProjection = (nx * dirX + ny * dirY) / Math.SQRT2;
-                const factor = Math.max(0.05, diagonalProjection / Math.SQRT2);
-
-                sW = startElemW * factor;
-                sH = startElemH * factor;
-            }
-
-            if (sH < 10) sH = 10;
-            if (sW < 10) sW = 10;
+            // Apply constraints (min size 10px)
+            if (startElemW + dw < 10) dw = 10 - startElemW;
+            if (startElemH + dh < 10) dh = 10 - startElemH;
             
-            // To simplify scaling with rotation, we scale symmetrically from the center
-            el.width = sW;
-            el.height = sH;
-            el.x = startElemX + startElemW/2 - el.width/2;
-            el.y = startElemY + startElemH/2 - el.height/2;
+            // New dimensions
+            el.width = startElemW + dw;
+            el.height = startElemH + dh;
+
+            // Calculate center shift in local space to keep anchor fixed
+            // Shift = half of size change
+            const shiftLX = ldx / 2;
+            const shiftLY = ldy / 2;
+
+            // Transform local shift back to global space using the inverse (rotation by +angle)
+            const shiftGX = shiftLX * Math.cos(angle) - shiftLY * Math.sin(angle);
+            const shiftGY = shiftLX * Math.sin(angle) + shiftLY * Math.cos(angle);
+
+            el.x = startElemX + shiftGX - dw / 2;
+            el.y = startElemY + shiftGY - dh / 2;
 
             const elems = getDOMElements();
             if (elems) {
@@ -1078,7 +1066,8 @@ function onGridDoubleClick(event) {
         } else {
             let el = interactiveElements[clickedElementIndex];
             let rotationStep = (el.type === 'obstacle') ? 15 : 90;
-            el.rotation = ((el.rotation || 0) + rotationStep) % 360;
+            // Always ensure it snaps to a multiple of 5 if it wasn't already (though 15 and 90 are)
+            el.rotation = Math.round(((el.rotation || 0) + rotationStep) / 5) * 5 % 360;
         }
         renderEditor();
         return;

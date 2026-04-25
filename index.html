@@ -636,13 +636,20 @@
                         <strong style="font-size: 1.1em; color: var(--primary-color);">Código</strong>
                     </div>
                     <div id="monacoContainer" style="height: 600px; border: 1px solid #ccc;"></div>
-                    <div style="display:flex; gap:0.5em; margin:1em 0; align-items: stretch; justify-content: space-between;">
-                        <button id="downloadCodeButton" style="flex:1; margin:0; padding:0.8em; display:flex; align-items:center; justify-content:center; box-sizing:border-box; height:auto; min-height: 2.8em;">Descargar Código</button>
+                    <div style="display:flex; gap:0.5em; margin:1em 0; align-items: center; justify-content: space-between;">
+                        <div style="flex:1; display:flex; flex-direction:column; gap:0.2em;">
+                            <label for="codeExampleSelect" style="font-size: 0.85em; font-weight: bold; color: #555;">Ejemplos de Código:</label>
+                            <select id="codeExampleSelect" style="padding: 0.5em; border-radius: 4px; border: 1px solid #ccc; font-family: sans-serif; cursor: pointer; height: 2.8em;">
+                                <option value="paredDerecha" selected>Seguidor de Pared Derecha Simple</option>
+                                <option value="pasillos">Seguidor de Pasillos Simple</option>
+                            </select>
+                        </div>
+                        <button id="loadExampleCodeButton" style="flex:1; margin:0; padding:0.8em; display:flex; align-items:center; justify-content:center; box-sizing:border-box; height:auto; min-height: 2.8em; align-self: flex-end;">Cargar Seleccionado</button>
+                        <button id="downloadCodeButton" style="flex:1; margin:0; padding:0.8em; display:flex; align-items:center; justify-content:center; box-sizing:border-box; height:auto; min-height: 2.8em; align-self: flex-end;">Descargar Código</button>
                         <label for="uploadCodeInput" class="file-input-label"
-                            style="flex:1; margin:0; padding:0.8em; display:flex; align-items:center; justify-content:center; box-sizing:border-box; height:auto; min-height: 2.8em; text-align:center; cursor:pointer;">Cargar Código
+                            style="flex:1; margin:0; padding:0.8em; display:flex; align-items:center; justify-content:center; box-sizing:border-box; height:auto; min-height: 2.8em; text-align:center; cursor:pointer; align-self: flex-end;">Cargar Archivo
                             <input type="file" id="uploadCodeInput" accept=".txt,.js,.ino,.cpp" style="display:none;">
                         </label>
-                        <button id="loadExampleCodeButton" style="flex:1; margin:0; padding:0.8em; display:flex; align-items:center; justify-content:center; box-sizing:border-box; height:auto; min-height: 2.8em;">Cargar Ejemplo</button>
                     </div>
                     <div class="code-editor-actions" style="margin-top: 1em;">
                         <button id="applyCodeButton" class="action-btn run-btn" title="Cargar Código en Simulador" style="background-color: #4CAF50; color: white; border: none; padding: 10px 20px; text-transform: uppercase; font-weight: bold; border-radius: 4px; cursor: pointer;">
@@ -726,7 +733,8 @@ analogWrite(10, 100); // Avanza motor Derecho (10)
 
                 <div class="code-explanation"
                     style="background-color: #fff9e6; padding: 1.5em; border-radius: 8px; border: 1px solid #ffeeba; position: sticky; top: 1rem; margin-top: 2.2em;">
-                    <!-- Las explicaciones inyectadas por Monaco-Setup irán aquí -->
+                    <div id="exampleTipContainer"></div>
+                    <div id="configurationGuideContainer"></div>
                 </div>
             </div>
         </div>

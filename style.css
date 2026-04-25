@@ -16,6 +16,12 @@
     --spacing-lg: 2rem;
 }
 
+.btn-success {
+    background-color: #10b981 !important;
+    border-color: #059669 !important;
+    color: white !important;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;

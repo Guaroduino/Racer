@@ -1,20 +1,23 @@
 #include <NewPing.h>
 
-// 1. Pines de Motores (L298N)
+// ==========================================
+// PARAMETROS AJUSTABLES (Configuración)
+// ==========================================
+int velCrucero = 100;      
+int velReducida = 40;      
+int tiempoGiroCiego = 150; // Aumentamos un poco para esquivar esquinas
+int umbralFreno = 10;      
+int distanciaIdeal = 15;   // <--- NUEVO: La distancia que quieres mantener de la pared
+// ==========================================
+
+// Configuración de pines (según Robot Ejemplo.json)
 const int IN1 = 5; const int IN2 = 6; 
 const int IN3 = 9; const int IN4 = 10; 
 
-// 2. Sensores Ultrasonidos
 #define MAX_DIST 100 
-NewPing us_Frontal(2, 4, MAX_DIST);
-NewPing us_Derecho(7, 8, MAX_DIST);
-NewPing us_Izquierdo(12, 13, MAX_DIST);
-
-// 3. Parámetros de Control
-int velBase = 110;      // Velocidad crucero moderada para evitar derrapes
-float Kp = 1.5;         // Fuerza de corrección
-float Kd = 12.0;        // Amortiguación para evitar el zigzag
-int errorAnterior = 0;
+NewPing sensorF(2, 4, MAX_DIST);  
+NewPing sensorD(7, 8, MAX_DIST);  
+NewPing sensorI(12, 13, MAX_DIST); 
 
 void setup() {
   pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
@@ -23,50 +26,41 @@ void setup() {
 }
 
 void loop() {
-  // Lectura de distancias (en cm)
-  int d_der = us_Derecho.ping_cm();
-  int d_izq = us_Izquierdo.ping_cm();
-  int d_frt = us_Frontal.ping_cm();
+  // 1. LEO SENSORES
+  int distF = sensorF.ping_cm();
+  int distD = sensorD.ping_cm();
+  int distI = sensorI.ping_cm(); 
 
-  // Si el sensor no recibe eco (0), asumimos que la pared está lejos (MAX_DIST)
-  if (d_der == 0) d_der = MAX_DIST;
-  if (d_izq == 0) d_izq = MAX_DIST;
-  if (d_frt == 0) d_frt = MAX_DIST;
+  if (distF == 0) distF = MAX_DIST;
+  if (distD == 0) distD = MAX_DIST;
+  if (distI == 0) distI = MAX_DIST;
 
-  // --- LÓGICA DE PASILLO ---
-  
-  // Calculamos el error de centrado
-  int errorActual = d_izq - d_der; 
+  // 2. LÓGICA DE MOVIMIENTO
 
-  // Si detectamos pared al frente muy cerca, reducimos velocidad base para girar mejor
-  int vBaseActual = velBase;
-  if (d_frt < 20) {
-    vBaseActual = 70; // Frenado preventivo en curvas cerradas
+  // --- CASO A: EMERGENCIA (Pared frontal) ---
+  if (distF < umbralFreno) {
+    moverMotores(0, velCrucero); 
+    delay(tiempoGiroCiego);
   }
+  // --- CASO B: SEGUIDOR DE PARED DERECHA ---
+  else {
+    int diferencia = distD - distanciaIdeal;
 
-  // PD: Proporcional + Derivativo
-  float correccion = (errorActual * Kp) + ((errorActual - errorAnterior) * Kd);
-  
-  // Aplicamos a los motores
-  int vI = vBaseActual - correccion;
-  int vD = vBaseActual + correccion;
-
-  aplicarMotores(vI, vD);
-  
-  errorAnterior = errorActual;
+    if (diferencia == 0) {
+      moverMotores(velCrucero, velCrucero);
+    } 
+    else if (diferencia < 0) {
+      moverMotores(velReducida, velCrucero); 
+    } 
+    else if (diferencia > 0) {
+      moverMotores(velCrucero, velReducida);
+    }
+  }
 }
 
-void aplicarMotores(int vL, int vR) {
-  // IMPORTANTE: En el simulador, valores negativos causan inversión brusca.
-  // Mantenemos los motores entre 0 y 255 para giros suaves.
-  vL = constrain(vL, 0, 255);
-  vR = constrain(vR, 0, 255);
-
-  // Motor Izquierdo
-  analogWrite(IN1, vL);
-  digitalWrite(IN2, LOW);
-
-  // Motor Derecho
-  analogWrite(IN3, vR);
-  digitalWrite(IN4, LOW);
+void moverMotores(int vI, int vD) {
+  analogWrite(5, vI);
+  digitalWrite(6, LOW);
+  analogWrite(9, vD);
+  digitalWrite(10, LOW);
 }

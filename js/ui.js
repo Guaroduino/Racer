@@ -362,7 +362,10 @@ Debes leer los 5 pines configurados (desde <b>${sensorPins.farLeft}</b> hasta <b
 - Cambia la velocidad en <code>analogWrite</code> para ajustar el ritmo.
 - Observa cómo reacciona el robot en las curvas según la lectura de los sensores.
 </div>`;
-    elems.codeExplanation.innerHTML = guideHtml;
+    const configGuideContainer = document.getElementById('configurationGuideContainer');
+    if (configGuideContainer) {
+        configGuideContainer.innerHTML = guideHtml;
+    }
 
     // --- 2. Editor de Código (editor-help) ---
     let sensorsText = "";

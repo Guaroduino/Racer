@@ -673,20 +673,24 @@ const arduinoAPI = {
 // Define the custom code template
 const customCodeTemplate = `#include <NewPing.h>
 
+// ==========================================
+// PARAMETROS AJUSTABLES (Configuración)
+// ==========================================
+int velCrucero = 100;      
+int velReducida = 40;      
+int tiempoGiroCiego = 150; // Aumentamos un poco para esquivar esquinas
+int umbralFreno = 10;      
+int distanciaIdeal = 15;   // <--- NUEVO: La distancia que quieres mantener de la pared
+// ==========================================
+
+// Configuración de pines (según Robot Ejemplo.json)
 const int IN1 = 5; const int IN2 = 6; 
 const int IN3 = 9; const int IN4 = 10; 
 
-#define MAX_DIST 100 // Aumentamos un poco para "ver" la curva desde antes
-NewPing us_Frontal(2, 4, MAX_DIST);
-NewPing us_Derecho(7, 8, MAX_DIST);
-NewPing us_Izquierdo(12, 13, MAX_DIST);
-
-// --- CONFIGURACIÓN CONTROL ---
-int velMax = 180;       // Velocidad en rectas largas
-int velMinPasillo = 80; // Velocidad mínima en curvas
-float Kp = 3.5; 
-float Kd = 12.0; 
-int errorAnterior = 0;
+#define MAX_DIST 100 
+NewPing sensorF(2, 4, MAX_DIST);  
+NewPing sensorD(7, 8, MAX_DIST);  
+NewPing sensorI(12, 13, MAX_DIST); 
 
 void setup() {
   pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
@@ -695,44 +699,45 @@ void setup() {
 }
 
 void loop() {
-  int d_frt = us_Frontal.ping_cm();    
-  int d_der = us_Derecho.ping_cm();    
-  int d_izq = us_Izquierdo.ping_cm();    
-  
-  if (d_frt <= 0) d_frt = MAX_DIST;
-  if (d_der <= 0) d_der = MAX_DIST;
-  if (d_izq <= 0) d_izq = MAX_DIST;
+  // 1. LEO SENSORES
+  int distF = sensorF.ping_cm();
+  int distD = sensorD.ping_cm();
+  int distI = sensorI.ping_cm(); 
 
-  // --- 1. GESTIÓN DE VELOCIDAD ADAPTATIVA ---
-  // Calculamos una velocidad base proporcional a la distancia frontal
-  // A más distancia frontal, más velocidad.
-  int velAdaptativa = map(d_frt, 15, MAX_DIST, velMinPasillo, velMax);
-  velAdaptativa = constrain(velAdaptativa, velMinPasillo, velMax);
+  if (distF == 0) distF = MAX_DIST;
+  if (distD == 0) distD = MAX_DIST;
+  if (distI == 0) distI = MAX_DIST;
 
-  // --- 2. CONTROL PD DE PASILLO (Siempre activo) ---
-  int errorActual = d_izq - d_der; 
-  float derivativa = (errorActual - errorAnterior);
-  int correccion = (errorActual * Kp) + (derivativa * Kd);
-  
-  // La velocidad base ya no es fija, es velAdaptativa
-  int vI = velAdaptativa - correccion;
-  int vD = velAdaptativa + correccion;
-  
-  aplicarMotores(vI, vD);
-  errorAnterior = errorActual;
+  // 2. LÓGICA DE MOVIMIENTO
 
-  // Debug para ver cómo cambia la velocidad
-  Serial.print("Dist Frontal: "); Serial.print(d_frt);
-  Serial.print(" | Vel Base: "); Serial.println(velAdaptativa);
+  // --- CASO A: EMERGENCIA (Pared frontal) ---
+  if (distF < umbralFreno) {
+    moverMotores(0, velCrucero); 
+    delay(tiempoGiroCiego);
+  }
+  // --- CASO B: SEGUIDOR DE PARED DERECHA ---
+  else {
+    int diferencia = distD - distanciaIdeal;
+
+    if (diferencia == 0) {
+      moverMotores(velCrucero, velCrucero);
+    } 
+    else if (diferencia < 0) {
+      moverMotores(velReducida, velCrucero); 
+    } 
+    else if (diferencia > 0) {
+      moverMotores(velCrucero, velReducida);
+    }
+  }
 }
 
-void aplicarMotores(int vL, int vR) {
-  // Evitamos inversión de motores para mantener tracción constante
-  vL = constrain(vL, 0, 255);
-  vR = constrain(vR, 0, 255);
-  analogWrite(IN1, vL); digitalWrite(IN2, LOW);
-  analogWrite(IN3, vR); digitalWrite(IN4, LOW);
-}`;
+void moverMotores(int vI, int vD) {
+  analogWrite(5, vI);
+  digitalWrite(6, LOW);
+  analogWrite(9, vD);
+  digitalWrite(10, LOW);
+}
+`;
 /**
  * Transpila código básico de Arduino (C++) a JavaScript asíncrono
  */
