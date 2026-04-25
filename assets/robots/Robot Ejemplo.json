@@ -22,8 +22,8 @@
         "x_mm": 97,
         "y_mm": 0,
         "angle": 0,
-        "coneAngle": 25,
-        "maxDistance": 4000,
+        "coneAngle": 10,
+        "maxDistance": 400,
         "symmetric": false
       },
       {
@@ -31,8 +31,8 @@
         "x_mm": 50,
         "y_mm": 32,
         "angle": 60,
-        "coneAngle": 25,
-        "maxDistance": 4000,
+        "coneAngle": 10,
+        "maxDistance": 400,
         "symmetric": false
       },
       {
@@ -40,13 +40,22 @@
         "x_mm": 50,
         "y_mm": -32,
         "angle": -60,
-        "coneAngle": 25,
-        "maxDistance": 4000,
+        "coneAngle": 10,
+        "maxDistance": 399,
         "symmetric": false
       }
     ],
     "connections": {
       "sensorPins": {
+        "fullFarLeft": "",
+        "farLeft": "",
+        "left": "",
+        "center": "",
+        "centerLeft": "",
+        "centerRight": "",
+        "right": "",
+        "farRight": "",
+        "fullFarRight": "",
         "custom_0_Trig": "2",
         "custom_0_Echo": "4",
         "custom_1_Trig": "7",
@@ -66,5 +75,41 @@
     },
     "horizontalSymmetry": false
   },
-  "parts": []
+  "parts": [
+    {
+      "id": "chassis2",
+      "name": "Chassis 2",
+      "x": 0.000326797385620921,
+      "y": -0.022412740470537186,
+      "rotation": 0
+    },
+    {
+      "id": "18650",
+      "name": "Batería 18650",
+      "x": 0.001084967320261427,
+      "y": 0.04354803227443324,
+      "rotation": 1.5707963267948966
+    },
+    {
+      "id": "18650",
+      "name": "Batería 18650",
+      "x": 0.001084967320261427,
+      "y": 0.02383561397377963,
+      "rotation": 1.5707963267948966
+    },
+    {
+      "id": "arduino_uno",
+      "name": "Arduino Uno",
+      "x": 0.004875816993464042,
+      "y": -0.012556542888965481,
+      "rotation": 3.141592653589793
+    },
+    {
+      "id": "l298n",
+      "name": "L298N Driver",
+      "x": 0.00032679738562089257,
+      "y": -0.058046738967396865,
+      "rotation": 3.141592653589793
+    }
+  ]
 }
