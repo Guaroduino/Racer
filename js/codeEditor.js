@@ -671,73 +671,67 @@ const arduinoAPI = {
 };
 
 // Define the custom code template
-const customCodeTemplate = `// Pines de Sensores (0 = LOW = Negro, 1 = HIGH = Blanco)
-const SENSOR_IZQ = A2;
-const SENSOR_CEN = A4;
-const SENSOR_DER = A3;
+const customCodeTemplate = `#include <NewPing.h>
 
-// Pines L298N Motor Izquierdo
-const IN1 = 11;
-const IN2 = 9;
-const ENA = 3;
+const int IN1 = 5; const int IN2 = 6; 
+const int IN3 = 9; const int IN4 = 10; 
 
-// Pines L298N Motor Derecho
-const IN3 = 10;
-const IN4 = 6;
-const ENB = 5;
+#define MAX_DIST 100 // Aumentamos un poco para "ver" la curva desde antes
+NewPing us_Frontal(2, 4, MAX_DIST);
+NewPing us_Derecho(7, 8, MAX_DIST);
+NewPing us_Izquierdo(12, 13, MAX_DIST);
 
-// Velocidad base
-const SPEED = 120;
+// --- CONFIGURACIÓN CONTROL ---
+int velMax = 180;       // Velocidad en rectas largas
+int velMinPasillo = 80; // Velocidad mínima en curvas
+float Kp = 3.5; 
+float Kd = 12.0; 
+int errorAnterior = 0;
 
 void setup() {
-    Serial.begin(9600);
-    
-    // Configurar Sensores
-    pinMode(SENSOR_IZQ, INPUT);
-    pinMode(SENSOR_CEN, INPUT);
-    pinMode(SENSOR_DER, INPUT);
-
-    // Configurar Motores
-    pinMode(IN1, OUTPUT);
-    pinMode(IN2, OUTPUT);
-    pinMode(ENA, OUTPUT);
-    pinMode(IN3, OUTPUT);
-    pinMode(IN4, OUTPUT);
-    pinMode(ENB, OUTPUT);
-    
-    Serial.println("Robot Line Follower Listo.");
+  pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
+  Serial.begin(115200);
 }
 
 void loop() {
-    int izq = digitalRead(SENSOR_IZQ);
-    int cen = digitalRead(SENSOR_CEN);
-    int der = digitalRead(SENSOR_DER);
-    
-    // Activar potencia en ambos motores
-    analogWrite(ENA, SPEED);
-    analogWrite(ENB, SPEED);
-    
-    // LOGICA DE SEGUIDOR DE LINEA (0 = LOW = Negra)
-    if (cen == LOW) {
-        // El centro está en la línea: Avanzar
-        digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
-        digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
-    }
-    else if (izq == LOW) {
-        // La línea está a la izquierda: Girar a la izquierda
-        digitalWrite(IN1, LOW);  digitalWrite(IN2, HIGH); // Invierte rueda izquierda
-        digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);  // Rueda derecha avanza
-    }
-    else if (der == LOW) {
-        // La línea está a la derecha: Girar a la derecha
-        digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);  // Rueda izquierda avanza
-        digitalWrite(IN3, LOW);  digitalWrite(IN4, HIGH); // Invierte rueda derecha
-    }
-    else {
-        // Si pierde la línea (todos en HIGH = Blanco), detenerse
-        digitalWrite(IN1, LOW); digitalWrite(IN2, LOW);
-        digitalWrite(IN3, LOW); digitalWrite(IN4, LOW);
-    }
+  int d_frt = us_Frontal.ping_cm();    
+  int d_der = us_Derecho.ping_cm();    
+  int d_izq = us_Izquierdo.ping_cm();    
+  
+  if (d_frt <= 0) d_frt = MAX_DIST;
+  if (d_der <= 0) d_der = MAX_DIST;
+  if (d_izq <= 0) d_izq = MAX_DIST;
+
+  // --- 1. GESTIÓN DE VELOCIDAD ADAPTATIVA ---
+  // Calculamos una velocidad base proporcional a la distancia frontal
+  // A más distancia frontal, más velocidad.
+  int velAdaptativa = map(d_frt, 15, MAX_DIST, velMinPasillo, velMax);
+  velAdaptativa = constrain(velAdaptativa, velMinPasillo, velMax);
+
+  // --- 2. CONTROL PD DE PASILLO (Siempre activo) ---
+  int errorActual = d_izq - d_der; 
+  float derivativa = (errorActual - errorAnterior);
+  int correccion = (errorActual * Kp) + (derivativa * Kd);
+  
+  // La velocidad base ya no es fija, es velAdaptativa
+  int vI = velAdaptativa - correccion;
+  int vD = velAdaptativa + correccion;
+  
+  aplicarMotores(vI, vD);
+  errorAnterior = errorActual;
+
+  // Debug para ver cómo cambia la velocidad
+  Serial.print("Dist Frontal: "); Serial.print(d_frt);
+  Serial.print(" | Vel Base: "); Serial.println(velAdaptativa);
+}
+
+void aplicarMotores(int vL, int vR) {
+  // Evitamos inversión de motores para mantener tracción constante
+  vL = constrain(vL, 0, 255);
+  vR = constrain(vR, 0, 255);
+  analogWrite(IN1, vL); digitalWrite(IN2, LOW);
+  analogWrite(IN3, vR); digitalWrite(IN4, LOW);
 }`;
 /**
  * Transpila código básico de Arduino (C++) a JavaScript asíncrono

@@ -491,11 +491,12 @@ export class Robot {
                     ctx.translate(x, y);
                     ctx.rotate(part.rotation || 0); // Apply the part's rotation
                     ctx.drawImage(part.img, -sizeW / 2, -sizeH / 2, sizeW, sizeH);
-                } else if (part.width && part.height) {
+                    ctx.restore();
+                } else if (part.width_m && part.length_m) {
                     const x = part.x * PIXELS_PER_METER;
                     const y = part.y * PIXELS_PER_METER;
-                    const w = part.width * PIXELS_PER_METER;
-                    const h = part.height * PIXELS_PER_METER;
+                    const w = part.width_m * PIXELS_PER_METER;
+                    const h = part.length_m * PIXELS_PER_METER;
                     ctx.save();
                     ctx.translate(x, y);
                     ctx.rotate(part.rotation || 0);

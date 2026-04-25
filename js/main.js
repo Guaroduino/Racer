@@ -68,97 +68,65 @@ const initApp = async () => {
 
     const DEMO_CODE = `#include <NewPing.h>
 
-// ====================================================================
-// 1. CONFIGURACION DE PINES MOTORES (Pines PWM obligatorios)
-// ====================================================================
-const int IN1 = 5;  // Motor Izquierdo PWM
-const int IN2 = 6;  // Motor Izquierdo PWM
-const int IN3 = 9;  // Motor Derecho PWM
-const int IN4 = 10; // Motor Derecho PWM
+const int IN1 = 5; const int IN2 = 6; 
+const int IN3 = 9; const int IN4 = 10; 
 
-// ====================================================================
-// 2. CONFIGURACION ULTRASONIDOS (Pines Digitales)
-// ====================================================================
-#define MAX_DIST 200
+#define MAX_DIST 100 // Aumentamos un poco para "ver" la curva desde antes
+NewPing us_Frontal(2, 4, MAX_DIST);
+NewPing us_Derecho(7, 8, MAX_DIST);
+NewPing us_Izquierdo(12, 13, MAX_DIST);
 
-// Frontal
-const int TRG_F = 2;
-const int ECH_F = 4;
-NewPing us_Frontal(TRG_F, ECH_F, MAX_DIST);
-
-// Derecho
-const int TRG_D = 7;
-const int ECH_D = 8;
-NewPing us_Derecho(TRG_D, ECH_D, MAX_DIST);
-
-// Izquierdo
-const int TRG_I = 12;
-const int ECH_I = 13;
-NewPing us_Izquierdo(TRG_I, ECH_I, MAX_DIST);
-
-// ====================================================================
-// 3. VARIABLES DE NAVEGACION
-// ====================================================================
-int velBase = 140;
-int distPared = 15;
-int distFreno = 12;     // AJUSTADO: 12cm para no frenar demasiado lejos
-float Kp = 6.0;
+// --- CONFIGURACIÓN CONTROL ---
+int velMax = 180;       // Velocidad en rectas largas
+int velMinPasillo = 80; // Velocidad mínima en curvas
+float Kp = 3.5; 
+float Kd = 12.0; 
+int errorAnterior = 0;
 
 void setup() {
   pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
   Serial.begin(115200);
-  delay(500);
 }
 
 void loop() {
-  int d_frt = us_Frontal.ping_cm();   delay(10);
-  int d_der = us_Derecho.ping_cm();   delay(10);
+  int d_frt = us_Frontal.ping_cm();    
+  int d_der = us_Derecho.ping_cm();    
+  int d_izq = us_Izquierdo.ping_cm();    
+  
+  if (d_frt <= 0) d_frt = MAX_DIST;
+  if (d_der <= 0) d_der = MAX_DIST;
+  if (d_izq <= 0) d_izq = MAX_DIST;
 
-  if (d_frt == 0) d_frt = MAX_DIST;
-  if (d_der == 0) d_der = MAX_DIST;
+  // --- 1. GESTIÓN DE VELOCIDAD ADAPTATIVA ---
+  // Calculamos una velocidad base proporcional a la distancia frontal
+  // A más distancia frontal, más velocidad.
+  int velAdaptativa = map(d_frt, 15, MAX_DIST, velMinPasillo, velMax);
+  velAdaptativa = constrain(velAdaptativa, velMinPasillo, velMax);
 
-  if (d_frt < distFreno) {
-    // Retroceder y girar izquierda ~90 grados
-    aplicarMotores(-120, -120);
-    delay(200);
-    aplicarMotores(-160, 160);
-    delay(400);
-  }
-  else if (d_der < 40) {
-    int error = d_der - distPared;
-    int correccion = error * Kp;
-    int vI = velBase + correccion;
-    int vD = velBase - correccion;
-    aplicarMotores(vI, vD);
-  }
-  else {
-    aplicarMotores(160, 90);
-  }
+  // --- 2. CONTROL PD DE PASILLO (Siempre activo) ---
+  int errorActual = d_izq - d_der; 
+  float derivativa = (errorActual - errorAnterior);
+  int correccion = (errorActual * Kp) + (derivativa * Kd);
+  
+  // La velocidad base ya no es fija, es velAdaptativa
+  int vI = velAdaptativa - correccion;
+  int vD = velAdaptativa + correccion;
+  
+  aplicarMotores(vI, vD);
+  errorAnterior = errorActual;
 
-  Serial.print("F:"); Serial.print(d_frt);
-  Serial.print(" | D:"); Serial.println(d_der);
+  // Debug para ver cómo cambia la velocidad
+  Serial.print("Dist Frontal: "); Serial.print(d_frt);
+  Serial.print(" | Vel Base: "); Serial.println(velAdaptativa);
 }
 
 void aplicarMotores(int vL, int vR) {
-  vL = constrain(vL, -255, 255);
-  vR = constrain(vR, -255, 255);
-
-  if (vL >= 0) {
-    analogWrite(IN1, vL);
-    digitalWrite(IN2, LOW);
-  } else {
-    digitalWrite(IN1, LOW);
-    analogWrite(IN2, abs(vL));
-  }
-
-  if (vR >= 0) {
-    analogWrite(IN3, vR);
-    digitalWrite(IN4, LOW);
-  } else {
-    digitalWrite(IN3, LOW);
-    analogWrite(IN4, abs(vR));
-  }
+  // Evitamos inversión de motores para mantener tracción constante
+  vL = constrain(vL, 0, 255);
+  vR = constrain(vR, 0, 255);
+  analogWrite(IN1, vL); digitalWrite(IN2, LOW);
+  analogWrite(IN3, vR); digitalWrite(IN4, LOW);
 }`;
 
     function refreshWhenDecorativePartsReady(decorativeParts = []) {

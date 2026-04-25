@@ -2,114 +2,65 @@
 const codeTemplates = {
         simpleOnOff: `#include <NewPing.h>
 
-// ====================================================================
-// 1. CONFIGURACION DE PINES MOTORES (L298N simple sin PWM Enable)
-// ====================================================================
-// Motor Izquierdo
-const int IN1 = 5;
-const int IN2 = 6;
-// Motor Derecho
-const int IN3 = 7;
-const int IN4 = 8;
+const int IN1 = 5; const int IN2 = 6; 
+const int IN3 = 9; const int IN4 = 10; 
 
-// ====================================================================
-// 2. CONFIGURACION ULTRASONIDOS (HC-SR04)
-// ====================================================================
-#define MAX_DIST 400
+#define MAX_DIST 100 // Aumentamos un poco para "ver" la curva desde antes
+NewPing us_Frontal(2, 4, MAX_DIST);
+NewPing us_Derecho(7, 8, MAX_DIST);
+NewPing us_Izquierdo(12, 13, MAX_DIST);
 
-// HC-SR04 Frontal
-const int TRG_F = 9;
-const int ECH_F = 10;
-NewPing us_Frontal(TRG_F, ECH_F, MAX_DIST);
-
-// HC-SR04 Derecho
-const int TRG_D = 11;
-const int ECH_D = 12;
-NewPing us_Derecho(TRG_D, ECH_D, MAX_DIST);
-
-// HC-SR04 Izquierdo
-const int TRG_I = 3;
-const int ECH_I = 4;
-NewPing us_Izquierdo(TRG_I, ECH_I, MAX_DIST);
-
-// ====================================================================
-// 3. VARIABLES DE NAVEGACION (Pared Derecha)
-// ====================================================================
-int velBase = 150;      
-int distParedEsperada = 20; // cm a la pared derecha
-int distFreno = 25;         // cm para esquivar pared frontal
-float Kp = 10.0;            // Ganancia Proporcional
+// --- CONFIGURACIÓN CONTROL ---
+int velMax = 180;       // Velocidad en rectas largas
+int velMinPasillo = 80; // Velocidad mínima en curvas
+float Kp = 3.5; 
+float Kd = 12.0; 
+int errorAnterior = 0;
 
 void setup() {
   pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
-
-  Serial.begin(9600);
-  delay(500);
+  Serial.begin(115200);
 }
 
 void loop() {
-  // LECTURA DE SENSORES EN CM
-  int d_frt = us_Frontal.ping_cm();
-  int d_der = us_Derecho.ping_cm();
-  int d_izq = us_Izquierdo.ping_cm();
+  int d_frt = us_Frontal.ping_cm();    
+  int d_der = us_Derecho.ping_cm();    
+  int d_izq = us_Izquierdo.ping_cm();    
+  
+  if (d_frt <= 0) d_frt = MAX_DIST;
+  if (d_der <= 0) d_der = MAX_DIST;
+  if (d_izq <= 0) d_izq = MAX_DIST;
 
-  // NewPing devuelve 0 si no hay eco (obstaculo demasiado lejos).
-  // Lo forzamos a una distancia grande.
-  if (d_frt == 0) d_frt = MAX_DIST;
-  if (d_der == 0) d_der = MAX_DIST;
-  if (d_izq == 0) d_izq = MAX_DIST;
+  // --- 1. GESTIÓN DE VELOCIDAD ADAPTATIVA ---
+  // Calculamos una velocidad base proporcional a la distancia frontal
+  // A más distancia frontal, más velocidad.
+  int velAdaptativa = map(d_frt, 15, MAX_DIST, velMinPasillo, velMax);
+  velAdaptativa = constrain(velAdaptativa, velMinPasillo, velMax);
 
-  // LOGICA SENSORIAL
-  // A. Pared al Frente: Prioridad 1
-  if (d_frt < distFreno) {
-     // Girar bruscamente a la izquierda sobre su propio eje
-     aplicarMotores(-150, 150);
-  }
-  else {
-     // B. Seguidor de pared derecha activado
-     if (d_der < 100) { 
-        int error = distParedEsperada - d_der; 
-        int correccion = error * Kp;
-        
-        // Si error > 0 (muy cerca) correccion es +, frena motor derecho
-        int vI = velBase + correccion;
-        int vD = velBase - correccion;
-        
-        aplicarMotores(vI, vD);
-     }
-     else {
-        // C. No hay pared derecha -> Curvar hacia la pared
-        aplicarMotores(180, 80); 
-     }
-  }
+  // --- 2. CONTROL PD DE PASILLO (Siempre activo) ---
+  int errorActual = d_izq - d_der; 
+  float derivativa = (errorActual - errorAnterior);
+  int correccion = (errorActual * Kp) + (derivativa * Kd);
+  
+  // La velocidad base ya no es fija, es velAdaptativa
+  int vI = velAdaptativa - correccion;
+  int vD = velAdaptativa + correccion;
+  
+  aplicarMotores(vI, vD);
+  errorAnterior = errorActual;
 
-  Serial.print("F:"); Serial.print(d_frt);
-  Serial.print(" | D:"); Serial.println(d_der);
-
-  delay(30); 
+  // Debug para ver cómo cambia la velocidad
+  Serial.print("Dist Frontal: "); Serial.print(d_frt);
+  Serial.print(" | Vel Base: "); Serial.println(velAdaptativa);
 }
 
-// Control de L298N simulando PWM en pines IN
 void aplicarMotores(int vL, int vR) {
-  vL = constrain(vL, -255, 255);
-  vR = constrain(vR, -255, 255);
-
-  if (vL >= 0) {
-    analogWrite(IN1, vL);
-    digitalWrite(IN2, LOW);
-  } else {
-    digitalWrite(IN1, LOW);
-    analogWrite(IN2, abs(vL));
-  }
-
-  if (vR >= 0) {
-    analogWrite(IN3, vR);
-    digitalWrite(IN4, LOW);
-  } else {
-    digitalWrite(IN3, LOW);
-    analogWrite(IN4, abs(vR));
-  }
+  // Evitamos inversión de motores para mantener tracción constante
+  vL = constrain(vL, 0, 255);
+  vR = constrain(vR, 0, 255);
+  analogWrite(IN1, vL); digitalWrite(IN2, LOW);
+  analogWrite(IN3, vR); digitalWrite(IN4, LOW);
 }
 `};
 

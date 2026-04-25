@@ -629,7 +629,7 @@ export function getPlacedParts() {
         let y_m = (part.y - previewCanvas.height / 2) / PIXELS_PER_METER;
         // Rotate by +90deg to match simulation orientation
         const rotated = rotate90(x_m, y_m);
-        return {
+        let data = {
             id: part.id,
             name: part.name,
             img: part.img, // Keep the image reference
@@ -637,6 +637,13 @@ export function getPlacedParts() {
             y: rotated.y,
             rotation: (part.rotation || 0) + Math.PI / 2 // Add 90 degrees to the rotation
         };
+        if (part.isParametric) {
+            data.isParametric = true;
+            data.width_m = (part.width_mm || 0) / 1000;
+            data.length_m = (part.length_mm || 0) / 1000;
+            data.color = part.color;
+        }
+        return data;
     });
 }
 
