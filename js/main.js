@@ -25,7 +25,7 @@ function waitForMonaco(maxAttempts = 50) {
     });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+const initApp = async () => {
     const elems = getDOMElements();
     setupTabs();
 
@@ -44,60 +44,121 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const DEMO_GEOMETRY = {
         arduinoBoard: "uno",
-        width_m: 0.095, sensorOffset_m: 0.09, sensorSpread_m: 0.015,
+        width_m: 0.12, sensorOffset_m: 0.09, sensorSpread_m: 0.015,
         sensorDiameter_m: 0.02, sensorCount: 0, robotMass_kg: 0.38,
         comOffset_m: 0.0, tireGrip: 0.8,
         customSensors: [
-          { type: "hcsr04", x_mm: 97, y_mm: 0, angle: 0, coneAngle: 25, maxDistance: 4000 },
-          { type: "hcsr04", x_mm: 50, y_mm: 32, angle: 60, coneAngle: 25, maxDistance: 4000 },
-          { type: "hcsr04", x_mm: 50, y_mm: -32, angle: -60, coneAngle: 25, maxDistance: 4000 }
+          { type: "hcsr04", x_mm: 100, y_mm: 0, angle: 0, coneAngle: 25, maxDistance: 4000 }, // Frontal
+          { type: "hcsr04", x_mm: 60, y_mm: -35, angle: -60, coneAngle: 25, maxDistance: 4000 }, // Izquierdo
+          { type: "hcsr04", x_mm: 60, y_mm: 35, angle: 60, coneAngle: 25, maxDistance: 4000 }  // Derecho
+        ],
+        decorativeParts: [
+          { id: "robot_body_rect", name: "Cuerpo Rectangular", x: 0, y: 0, width: 0.15, height: 0.12, color: "#808080" }
         ],
         connections: {
             driverType: 'l298n',
-            sensorPins: { custom_0_Trig: "9", custom_0_Echo: "10", custom_1_Trig: "11", custom_1_Echo: "12", custom_2_Trig: "3", custom_2_Echo: "4" },
-            motorPins: { leftEn: "VCC", leftIn1: "5", leftIn2: "6", rightIn3: "7", rightIn4: "8", rightEn: "VCC" }
+            sensorPins: { 
+                custom_0_Trig: "2", custom_0_Echo: "4",   // Frontal
+                custom_1_Trig: "7", custom_1_Echo: "8",   // Derecho
+                custom_2_Trig: "12", custom_2_Echo: "13" // Izquierdo
+            },
+            motorPins: { leftEn: "VCC", leftIn1: "5", leftIn2: "6", rightIn3: "9", rightIn4: "10", rightEn: "VCC" }
         }
     };
 
     const DEMO_CODE = `#include <NewPing.h>
 
-#define MAX_DIST 400
-NewPing us_Frontal(9, 10, MAX_DIST);
-NewPing us_Derecho(11, 12, MAX_DIST);
-NewPing us_Izquierdo(3, 4, MAX_DIST);
+// ====================================================================
+// 1. CONFIGURACION DE PINES MOTORES (Pines PWM obligatorios)
+// ====================================================================
+const int IN1 = 5;  // Motor Izquierdo PWM
+const int IN2 = 6;  // Motor Izquierdo PWM
+const int IN3 = 9;  // Motor Derecho PWM
+const int IN4 = 10; // Motor Derecho PWM
 
-const int IN1 = 5, IN2 = 6, IN3 = 7, IN4 = 8;
-int velBase = 150;
-float Kp = 10.0;
+// ====================================================================
+// 2. CONFIGURACION ULTRASONIDOS (Pines Digitales)
+// ====================================================================
+#define MAX_DIST 200
+
+// Frontal
+const int TRG_F = 2;
+const int ECH_F = 4;
+NewPing us_Frontal(TRG_F, ECH_F, MAX_DIST);
+
+// Derecho
+const int TRG_D = 7;
+const int ECH_D = 8;
+NewPing us_Derecho(TRG_D, ECH_D, MAX_DIST);
+
+// Izquierdo
+const int TRG_I = 12;
+const int ECH_I = 13;
+NewPing us_Izquierdo(TRG_I, ECH_I, MAX_DIST);
+
+// ====================================================================
+// 3. VARIABLES DE NAVEGACION
+// ====================================================================
+int velBase = 140;
+int distPared = 15;
+int distFreno = 12;     // AJUSTADO: 12cm para no frenar demasiado lejos
+float Kp = 6.0;
 
 void setup() {
   pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
-  Serial.begin(9600);
+  Serial.begin(115200);
+  delay(500);
 }
 
 void loop() {
-  int d_frt = us_Frontal.ping_cm(); if(!d_frt) d_frt = MAX_DIST;
-  int d_der = us_Derecho.ping_cm(); if(!d_der) d_der = MAX_DIST;
+  int d_frt = us_Frontal.ping_cm();   delay(10);
+  int d_der = us_Derecho.ping_cm();   delay(10);
 
-  if (d_frt < 25) {
-     aplicarMotores(-150, 150);
-  } else {
-     if (d_der < 100) { 
-        int error = 20 - d_der; 
-        int correccion = error * Kp;
-        aplicarMotores(velBase + correccion, velBase - correccion);
-     } else {
-        aplicarMotores(180, 80); 
-     }
+  if (d_frt == 0) d_frt = MAX_DIST;
+  if (d_der == 0) d_der = MAX_DIST;
+
+  if (d_frt < distFreno) {
+    // Retroceder y girar izquierda ~90 grados
+    aplicarMotores(-120, -120);
+    delay(200);
+    aplicarMotores(-160, 160);
+    delay(400);
   }
-  delay(30); 
+  else if (d_der < 40) {
+    int error = d_der - distPared;
+    int correccion = error * Kp;
+    int vI = velBase + correccion;
+    int vD = velBase - correccion;
+    aplicarMotores(vI, vD);
+  }
+  else {
+    aplicarMotores(160, 90);
+  }
+
+  Serial.print("F:"); Serial.print(d_frt);
+  Serial.print(" | D:"); Serial.println(d_der);
 }
 
 void aplicarMotores(int vL, int vR) {
-  vL = constrain(vL, -255, 255); vR = constrain(vR, -255, 255);
-  if (vL >= 0) { analogWrite(IN1, vL); digitalWrite(IN2, LOW); } else { digitalWrite(IN1, LOW); analogWrite(IN2, abs(vL)); }
-  if (vR >= 0) { analogWrite(IN3, vR); digitalWrite(IN4, LOW); } else { digitalWrite(IN3, LOW); analogWrite(IN4, abs(vR)); }
+  vL = constrain(vL, -255, 255);
+  vR = constrain(vR, -255, 255);
+
+  if (vL >= 0) {
+    analogWrite(IN1, vL);
+    digitalWrite(IN2, LOW);
+  } else {
+    digitalWrite(IN1, LOW);
+    analogWrite(IN2, abs(vL));
+  }
+
+  if (vR >= 0) {
+    analogWrite(IN3, vR);
+    digitalWrite(IN4, LOW);
+  } else {
+    digitalWrite(IN3, LOW);
+    analogWrite(IN4, abs(vR));
+  }
 }`;
 
     function refreshWhenDecorativePartsReady(decorativeParts = []) {
@@ -598,7 +659,7 @@ void aplicarMotores(int vL, int vR) {
                     svpGeometry = {
                         ...DEMO_GEOMETRY,         // provides connections, mass, grip, etc.
                         ...robotData.geometry,    // overrides width, sensorOffset, sensorSpread, sensorDiameter
-                        sensorCount: DEMO_GEOMETRY.sensorCount,      // keep 3 sensors
+                        sensorCount: DEMO_GEOMETRY.sensorCount,
                         connections: DEMO_GEOMETRY.connections        // keep demo pin config
                     };
                 }
@@ -636,6 +697,8 @@ void aplicarMotores(int vL, int vR) {
                 img.src = assetPath;
             })));
             simulationInstance.robot.setDecorativeParts(directParts.filter(Boolean));
+        } else if (svpGeometry.decorativeParts) {
+            simulationInstance.robot.setDecorativeParts(svpGeometry.decorativeParts);
         } else {
             simulationInstance.robot.decorativeParts = [];
         }
@@ -1123,4 +1186,10 @@ void aplicarMotores(int vL, int vR) {
         console.error("Critical Start Error:", err);
         alert("Error crítico durante la inicialización. Revisa la consola. " + err.message);
     });
-});
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}

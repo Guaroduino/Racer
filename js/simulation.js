@@ -517,10 +517,15 @@ export class Simulation {
         let p_endX = startX_px + Math.cos(angle_rad) * maxDistance_px;
         let p_endY = startY_px + Math.sin(angle_rad) * maxDistance_px;
 
-        // Array combinado o vivo de los obstáculos sin necesidad de presionar exportar
-        const liveElements = (window.trackEditorInstance && typeof window.trackEditorInstance.getInteractiveElements === 'function') 
-            ? window.trackEditorInstance.getInteractiveElements() 
-            : (this.track && this.track.interactiveElements ? this.track.interactiveElements : []);
+        // Combine elements from both the track and the live editor
+        let liveElements = (this.track && this.track.interactiveElements) ? [...this.track.interactiveElements] : [];
+        if (window.trackEditorInstance && typeof window.trackEditorInstance.getInteractiveElements === 'function') {
+            const editorElements = window.trackEditorInstance.getInteractiveElements();
+            if (editorElements && editorElements.length > 0) {
+                // Merge editor elements, favoring them over track's own
+                liveElements = [...editorElements];
+            }
+        }
 
         if (liveElements && liveElements.length > 0) {
             for (const el of liveElements) {
@@ -597,39 +602,52 @@ export class Simulation {
             }
         }
         
-        // Also raycast against track boundaries (walls)
-        if (this.track && this.track.width_px > 0 && this.track.height_px > 0) {
-            let hit = true;
-            let t0 = 0.0, t1 = 1.0;
-            const p = [-(p_endX - startX_px), p_endX - startX_px, -(p_endY - startY_px), p_endY - startY_px];
-            const q = [startX_px - 0, this.track.width_px - startX_px, startY_px - 0, this.track.height_px - startY_px];
-
-            for (let i = 0; i < 4; i++) {
-                if (p[i] === 0) {
-                    if (q[i] < 0) hit = false;
-                } else {
-                    const t = q[i] / p[i];
-                    if (p[i] < 0) {
-                        if (t > t1) hit = false;
-                        else if (t > t0) t0 = t;
-                    } else {
-                        if (t < t0) hit = false;
-                        else if (t < t1) t1 = t;
-                    }
-                }
-            }
-
-            if (hit && t0 <= t1 && t0 >= 0 && t0 <= 1) {
-                const hitX = startX_px + t0 * (p_endX - startX_px);
-                const hitY = startY_px + t0 * (p_endY - startY_px);
-                const distSq = (hitX - startX_px)**2 + (hitY - startY_px)**2;
-                if (distSq < minDistanceSq && distSq > 0) {
-                    minDistanceSq = distSq;
-                }
+        // Also raycast against track pixel walls (dark pixels in the track image)
+        if (this.track && this.track.imageData) {
+            const trackWallHitDist = this._raycastTrackWalls(startX_px, startY_px, angle_rad, Math.sqrt(minDistanceSq));
+            if (trackWallHitDist !== null && trackWallHitDist * trackWallHitDist < minDistanceSq) {
+                minDistanceSq = trackWallHitDist * trackWallHitDist;
             }
         }
 
         return Math.sqrt(minDistanceSq);
+    }
+
+    // Raycasts against dark pixels in the track image (walls/borders of a maze/corridor).
+    // Returns the distance in pixels to the first dark pixel hit, or null if nothing hit within maxDist.
+    _raycastTrackWalls(startX_px, startY_px, angle_rad, maxDist_px) {
+        const imgData = this.track.imageData;
+        const w = this.track.width_px;
+        const h = this.track.height_px;
+        const threshold = this.params.lineThreshold !== undefined ? this.params.lineThreshold : 100;
+
+        const dirX = Math.cos(angle_rad);
+        const dirY = Math.sin(angle_rad);
+
+        // Use adaptive step: smaller steps for precision near the sensor, larger for far distances
+        // Step size: 2px gives good balance of performance vs precision
+        const step = 2;
+
+        for (let d = step; d <= maxDist_px; d += step) {
+            const wx = Math.round(startX_px + dirX * d);
+            const wy = Math.round(startY_px + dirY * d);
+
+            // Out of track bounds counts as a wall (the exterior)
+            if (wx < 0 || wx >= w || wy < 0 || wy >= h) {
+                return d;
+            }
+
+            const idx = (wy * w + wx) * 4;
+            const alpha = imgData.data[idx + 3];
+            if (alpha < 128) continue; // transparent = background, not a wall
+
+            const brightness = (imgData.data[idx] + imgData.data[idx + 1] + imgData.data[idx + 2]) / 3;
+            if (brightness < threshold) {
+                return d; // Hit a dark pixel (wall)
+            }
+        }
+
+        return null; // No wall hit within maxDist
     }
 
     _updateRobotSensors() {

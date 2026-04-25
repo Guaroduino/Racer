@@ -1,94 +1,84 @@
 #include <NewPing.h>
 
 // ====================================================================
-// 1. CONFIGURACION DE PINES MOTORES (L298N simple sin PWM Enable)
+// 1. CONFIGURACION DE PINES MOTORES (Pines PWM obligatorios)
 // ====================================================================
-// Motor Izquierdo
-const int IN1 = 5;
-const int IN2 = 6;
-// Motor Derecho
-const int IN3 = 7;
-const int IN4 = 8;
+const int IN1 = 5;  // Motor Izquierdo PWM
+const int IN2 = 6;  // Motor Izquierdo PWM
+const int IN3 = 9;  // Motor Derecho PWM
+const int IN4 = 10; // Motor Derecho PWM
 
 // ====================================================================
-// 2. CONFIGURACION ULTRASONIDOS (HC-SR04)
+// 2. CONFIGURACION ULTRASONIDOS (Pines Digitales)
 // ====================================================================
-#define MAX_DIST 400
+#define MAX_DIST 200
 
-// HC-SR04 Frontal
-const int TRG_F = 9;
-const int ECH_F = 10;
+// Frontal
+const int TRG_F = 2; 
+const int ECH_F = 4;
 NewPing us_Frontal(TRG_F, ECH_F, MAX_DIST);
 
-// HC-SR04 Derecho
-const int TRG_D = 11;
-const int ECH_D = 12;
+// Derecho
+const int TRG_D = 7;
+const int ECH_D = 8;
 NewPing us_Derecho(TRG_D, ECH_D, MAX_DIST);
 
-// HC-SR04 Izquierdo
-const int TRG_I = 3;
-const int ECH_I = 4;
+// Izquierdo
+const int TRG_I = 12;
+const int ECH_I = 13;
 NewPing us_Izquierdo(TRG_I, ECH_I, MAX_DIST);
 
 // ====================================================================
-// 3. VARIABLES DE NAVEGACION (Pared Derecha)
+// 3. VARIABLES DE NAVEGACION
 // ====================================================================
-int velBase = 150;      
-int distParedEsperada = 20; // cm a la pared derecha
-int distFreno = 25;         // cm para esquivar pared frontal
-float Kp = 10.0;            // Ganancia Proporcional
+int velBase = 140;      // Velocidad crucero
+int distPared = 15;     // Distancia ideal a la pared derecha (cm)
+int distFreno = 12;     // AJUSTADO: 12cm para no frenar demasiado lejos
+float Kp = 6.0;         // Ganancia proporcional
 
 void setup() {
   pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
-
-  Serial.begin(9600);
+  Serial.begin(115200);
   delay(500);
 }
 
 void loop() {
-  // LECTURA DE SENSORES EN CM
-  int d_frt = us_Frontal.ping_cm();
-  int d_der = us_Derecho.ping_cm();
-  int d_izq = us_Izquierdo.ping_cm();
-
-  // NewPing devuelve 0 si no hay eco (obstaculo demasiado lejos).
-  // Lo forzamos a una distancia grande.
+  int d_frt = us_Frontal.ping_cm();   delay(10);
+  int d_der = us_Derecho.ping_cm();   delay(10);
+  
   if (d_frt == 0) d_frt = MAX_DIST;
   if (d_der == 0) d_der = MAX_DIST;
-  if (d_izq == 0) d_izq = MAX_DIST;
 
-  // LOGICA SENSORIAL
-  // A. Pared al Frente: Prioridad 1
+  // --- LOGICA DE DECISION ---
+
   if (d_frt < distFreno) {
-     // Girar bruscamente a la izquierda sobre su propio eje
-     aplicarMotores(-150, 150);
-  }
+    // PRIORIDAD 1: Pared al frente -> Retroceder un poco y girar izquierda
+    aplicarMotores(-120, -120);  // Retroceder
+    delay(200);
+    aplicarMotores(-160, 160);   // Girar izquierda sobre el eje
+    delay(400);                  // AJUSTADO: 400ms = ~90 grados de giro
+  } 
+  else if (d_der < 40) { 
+    // PRIORIDAD 2: Seguidor de pared derecha (Control Proporcional)
+    int error = d_der - distPared; 
+    int correccion = error * Kp;
+    
+    int vI = velBase + correccion;
+    int vD = velBase - correccion;
+    
+    aplicarMotores(vI, vD);
+  } 
   else {
-     // B. Seguidor de pared derecha activado
-     if (d_der < 100) { 
-        int error = distParedEsperada - d_der; 
-        int correccion = error * Kp;
-        
-        // Si error > 0 (muy cerca) correccion es +, frena motor derecho
-        int vI = velBase + correccion;
-        int vD = velBase - correccion;
-        
-        aplicarMotores(vI, vD);
-     }
-     else {
-        // C. No hay pared derecha -> Curvar hacia la pared
-        aplicarMotores(180, 80); 
-     }
+    // PRIORIDAD 3: No detecta pared -> Curva a la derecha para buscarla
+    aplicarMotores(160, 90); 
   }
 
   Serial.print("F:"); Serial.print(d_frt);
   Serial.print(" | D:"); Serial.println(d_der);
-
-  delay(30); 
 }
 
-// Control de L298N simulando PWM en pines IN
+// Control de L298N usando PWM en pines IN
 void aplicarMotores(int vL, int vR) {
   vL = constrain(vL, -255, 255);
   vR = constrain(vR, -255, 255);

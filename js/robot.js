@@ -9,7 +9,7 @@ export class Robot {
         this.angle_rad = initialAngle_rad; // Angle in radians, 0 is along positive X-axis
 
         // Default to 3 sensors if not specified
-        const sensorCount = geometry && geometry.sensorCount ? geometry.sensorCount : 3;
+        const sensorCount = (geometry && geometry.sensorCount !== undefined) ? geometry.sensorCount : 3;
         this.sensorCount = sensorCount;
         this.sensors = {};
         this._initSensorState();
@@ -126,7 +126,7 @@ export class Robot {
         this.sensorForwardProtrusion_m = geometry.sensorOffset_m;
         this.sensorSideSpread_m = geometry.sensorSpread_m;
         this.sensorDiameter_m = geometry.sensorDiameter_m;
-        this.sensorCount = geometry.sensorCount || 3;
+        this.sensorCount = (geometry.sensorCount !== undefined) ? geometry.sensorCount : 3;
 
         // Asignar parámetros físicos de la geometría (o usar defaults de config en caso que no vengan)
         this.robotMass_kg = geometry.robotMass_kg ?? 0.25;
@@ -280,7 +280,7 @@ export class Robot {
     // Gets sensor positions in meters, relative to robot's origin (center of axle line) and orientation
     // Returns an object with keys matching this.sensors
     getSensorPositions_world_m() {
-        const count = this.sensorCount || 3;
+        const count = (this.sensorCount !== undefined) ? this.sensorCount : 3;
         const offset = this.sensorForwardProtrusion_m;
         const spread = this.sensorSideSpread_m;
         const cosA = Math.cos(this.angle_rad);
@@ -491,6 +491,19 @@ export class Robot {
                     ctx.translate(x, y);
                     ctx.rotate(part.rotation || 0); // Apply the part's rotation
                     ctx.drawImage(part.img, -sizeW / 2, -sizeH / 2, sizeW, sizeH);
+                } else if (part.width && part.height) {
+                    const x = part.x * PIXELS_PER_METER;
+                    const y = part.y * PIXELS_PER_METER;
+                    const w = part.width * PIXELS_PER_METER;
+                    const h = part.height * PIXELS_PER_METER;
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.rotate(part.rotation || 0);
+                    ctx.fillStyle = part.color || '#808080';
+                    ctx.fillRect(-w / 2, -h / 2, w, h);
+                    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(-w / 2, -h / 2, w, h);
                     ctx.restore();
                 }
             });

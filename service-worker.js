@@ -1,5 +1,5 @@
 // service-worker.js
-const CACHE_NAME = 'sim-pwa-v19';
+const CACHE_NAME = 'sim-pwa-v20';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -18,7 +18,9 @@ const urlsToCache = [
   '/js/simulation.js',
   '/js/track.js',
   '/js/trackEditor.js',
+  '/js/utils.js',
   '/assets/Logo%20guaroduino.png',
+  '/assets/robots/Codigo_Ejemplo.txt'
 ];
 
 self.addEventListener('install', event => {
@@ -26,6 +28,7 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
@@ -36,6 +39,7 @@ self.addEventListener('activate', event => {
       );
     })
   );
+  self.clients.claim();
 });
 
 // Network-First strategy

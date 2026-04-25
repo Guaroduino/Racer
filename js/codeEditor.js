@@ -288,22 +288,23 @@ const normalizePin = (pin) => {
 };
 
 class MockNewPing {
-    constructor(trigger_pin, echo_pin, max_cm_distance = 500) {
-        this.triggerPin = parseInt(trigger_pin);
-        this.echoPin = parseInt(echo_pin);
+    constructor(trigger_pin, echo_pin, max_cm_distance = 400) {
+        this.triggerPin = normalizePin(trigger_pin);
+        this.echoPin = normalizePin(echo_pin);
         this.maxDistanceCm = parseInt(max_cm_distance);
     }
     
     async ping() {
-        await arduinoAPI.delay(30);
+        await arduinoAPI.delay(20); // Simular tiempo de viaje
         let distMm = this._getDistanceMm();
         let distCm = distMm / 10;
         if (distCm > this.maxDistanceCm || distMm >= 4000) return 0;
-        return Math.round(distMm * 5.8); 
+        // El tiempo en microsegundos es aprox dist (cm) * 58.8
+        return Math.round(distCm * 58.8); 
     }
     
     async ping_cm() {
-        await arduinoAPI.delay(30);
+        await arduinoAPI.delay(20);
         let distMm = this._getDistanceMm();
         let distCm = distMm / 10;
         if (distCm > this.maxDistanceCm || distMm >= 4000) return 0;
@@ -311,7 +312,7 @@ class MockNewPing {
     }
     
     async ping_in() {
-        await arduinoAPI.delay(30);
+        await arduinoAPI.delay(20);
         let distMm = this._getDistanceMm();
         let distCm = distMm / 10;
         if (distCm > this.maxDistanceCm || distMm >= 4000) return 0;
@@ -320,18 +321,23 @@ class MockNewPing {
     
     _getDistanceMm() {
         if (!sharedSimulationState || !sharedSimulationState.robot || !sharedSimulationState.robot.connections) return 4000;
+        
+        const pins = sharedSimulationState.robot.connections.sensorPins;
+        const targetEcho = this.echoPin;
+        
         let sensorIdx = -1;
-        for (const [key, p] of Object.entries(sharedSimulationState.robot.connections.sensorPins)) {
-            if (resolveUIPin(p) === this.echoPin && key.startsWith('custom_') && key.endsWith('_Echo')) {
+        for (const [key, p] of Object.entries(pins)) {
+            if (normalizePin(p) === targetEcho && key.startsWith('custom_') && key.endsWith('_Echo')) {
                 sensorIdx = parseInt(key.replace('custom_', '').replace('_Echo', ''));
                 break;
             }
         }
+        
         if (sensorIdx >= 0) {
             let dist_mm = sharedSimulationState.robot.sensors[`custom_${sensorIdx}_distance_mm`];
-            if (dist_mm === undefined) return 4000;
-            return dist_mm;
+            return (dist_mm !== undefined) ? dist_mm : 4000;
         }
+        
         return 4000;
     }
 }

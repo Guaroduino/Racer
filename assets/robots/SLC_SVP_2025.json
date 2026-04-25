@@ -1,17 +1,37 @@
 {
   "geometry": {
-    "width_m": 0.14,
-    "sensorOffset_m": 0.15,
-    "sensorSpread_m": 0.017,
-    "sensorDiameter_m": 0.02
+    "width_m": 0.095,
+    "sensorOffset_m": 0.09,
+    "sensorSpread_m": 0.015,
+    "sensorDiameter_m": 0.02,
+    "sensorCount": 0,
+    "robotMass_kg": 0.38,
+    "comOffset_m": 0.0,
+    "tireGrip": 0.8,
+    "customSensors": [
+      { "type": "hcsr04", "x_mm": 97, "y_mm": 0, "angle": 0, "coneAngle": 25, "maxDistance": 4000 },
+      { "type": "hcsr04", "x_mm": 50, "y_mm": 32, "angle": 60, "coneAngle": 25, "maxDistance": 4000 },
+      { "type": "hcsr04", "x_mm": 50, "y_mm": -32, "angle": -60, "coneAngle": 25, "maxDistance": 4000 }
+    ],
+    "connections": {
+      "driverType": "l298n",
+      "sensorPins": { 
+          "custom_0_Trig": "9", "custom_0_Echo": "10", 
+          "custom_1_Trig": "3", "custom_1_Echo": "4", 
+          "custom_2_Trig": "11", "custom_2_Echo": "12" 
+      },
+      "motorPins": { "leftEn": "VCC", "leftIn1": "5", "leftIn2": "6", "rightIn3": "7", "rightIn4": "8", "rightEn": "VCC" }
+    }
   },
   "parts": [
     {
-      "id": "robot_body",
-      "name": "Cuerpo Robot",
-      "x": 0.0022890625,
-      "y": -0.06016796875,
-      "rotation": 4.71238898038469
+      "id": "robot_body_rect",
+      "name": "Cuerpo Rectangular",
+      "x": 0,
+      "y": 0,
+      "width": 0.12,
+      "height": 0.16,
+      "color": "#808080"
     }
   ]
 }

@@ -313,14 +313,18 @@ export function initRobotEditor(appInterface) {
             }
         });
 
+        const rowLeft = document.getElementById('rowSensorLeft');
+        const rowRight = document.getElementById('rowSensorRight');
         const rowFarLeft = document.getElementById('rowSensorFarLeft');
         const rowCenter = document.getElementById('rowSensorCenter');
         const rowFarRight = document.getElementById('rowSensorFarRight');
         const rowFullFarLeft = document.getElementById('rowSensorFullFarLeft');
         const rowFullFarRight = document.getElementById('rowSensorFullFarRight');
 
+        if (rowLeft) rowLeft.style.display = (count >= 2) ? 'flex' : 'none';
+        if (rowRight) rowRight.style.display = (count >= 2) ? 'flex' : 'none';
         if (rowFarLeft) rowFarLeft.style.display = (count >= 4) ? 'flex' : 'none';
-        if (rowCenter) rowCenter.style.display = (count % 2 !== 0 && count !== 8) ? 'flex' : 'none'; 
+        if (rowCenter) rowCenter.style.display = (count % 2 !== 0 && count !== 8 && count > 0) ? 'flex' : 'none'; 
         if (rowFarRight) rowFarRight.style.display = (count >= 4) ? 'flex' : 'none';
         if (rowFullFarLeft) rowFullFarLeft.style.display = (count >= 6) ? 'flex' : 'none';
         if (rowFullFarRight) rowFullFarRight.style.display = (count >= 6) ? 'flex' : 'none';
@@ -521,7 +525,7 @@ export function initRobotEditor(appInterface) {
             syncDecorativeSensorsWithGeometry();
             renderRobotPreview();
         });
-        updateSensorConnectionsUI(parseInt(elems.sensorCountSelect.value) || 3);
+        updateSensorConnectionsUI(parseInt(elems.sensorCountSelect.value));
     }
     
     // --- Arduino Board Select logic ---
@@ -1232,7 +1236,7 @@ function getFormValues() {
     const sym = elems.horizontalSymmetryToggle ? elems.horizontalSymmetryToggle.checked : false;
     
     if (sym) {
-        let count = parseInt(elems.sensorCountSelect ? elems.sensorCountSelect.value : 3);
+        let count = parseInt(elems.sensorCountSelect ? elems.sensorCountSelect.value : 0);
         let activeSensors = [];
         if (count === 1) activeSensors = ['center'];
         else if (count === 2) activeSensors = ['left', 'right'];
@@ -1253,7 +1257,22 @@ function getFormValues() {
     if (currentGeometry && currentGeometry.customSensors) {
         currentGeometry.customSensors.forEach((sensor, idx) => {
             const type = sensor.type || 'ir';
-            if (type === 'rgb' || type === 'tof' || type === 'screen') {
+            if (type === 'hcsr04') {
+                // HC-SR04: leer pines Trig y Echo separados
+                const elTrig = document.getElementById(`pinSensorCustom_${idx}_Trig`);
+                const elEcho = document.getElementById(`pinSensorCustom_${idx}_Echo`);
+                if (elTrig && elTrig.value) connections.sensorPins[`custom_${idx}_Trig`] = elTrig.value;
+                if (elEcho && elEcho.value) connections.sensorPins[`custom_${idx}_Echo`] = elEcho.value;
+                // Fallback: si los inputs no existen todavía, preservar los valores del currentGeometry
+                if (!elTrig && currentGeometry.connections && currentGeometry.connections.sensorPins) {
+                    const savedTrig = currentGeometry.connections.sensorPins[`custom_${idx}_Trig`];
+                    if (savedTrig) connections.sensorPins[`custom_${idx}_Trig`] = savedTrig;
+                }
+                if (!elEcho && currentGeometry.connections && currentGeometry.connections.sensorPins) {
+                    const savedEcho = currentGeometry.connections.sensorPins[`custom_${idx}_Echo`];
+                    if (savedEcho) connections.sensorPins[`custom_${idx}_Echo`] = savedEcho;
+                }
+            } else if (type === 'rgb' || type === 'tof' || type === 'screen') {
                 const elSDA = document.getElementById(`pinSensorCustom_${idx}_SDA`);
                 const elSCL = document.getElementById(`pinSensorCustom_${idx}_SCL`);
                 if (elSDA && elSDA.value) connections.sensorPins[`custom_${idx}_SDA`] = elSDA.value;
@@ -1296,7 +1315,7 @@ function getFormValues() {
         sensorOffset_m: parseFloat(elems.sensorOffsetInput.value) / 1000 || DEFAULT_ROBOT_GEOMETRY.sensorOffset_m,
         sensorSpread_m: parseFloat(elems.sensorSpreadInput.value) / 1000 || DEFAULT_ROBOT_GEOMETRY.sensorSpread_m,
         sensorDiameter_m: parseFloat(elems.sensorDiameterInput.value) / 1000 || DEFAULT_ROBOT_GEOMETRY.sensorDiameter_m,
-        sensorCount: parseInt(elems.sensorCountSelect?.value) || 3,
+        sensorCount: parseInt(elems.sensorCountSelect?.value || 0),
         robotMass_kg: elems.robotMassInput ? parseFloat(elems.robotMassInput.value) : DEFAULT_ROBOT_GEOMETRY.robotMass_kg,
         comOffset_m: elems.comOffsetInput ? (parseFloat(elems.comOffsetInput.value) / 1000) : DEFAULT_ROBOT_GEOMETRY.comOffset_m,
         tireGrip: elems.tireGripInput ? parseFloat(elems.tireGripInput.value) : DEFAULT_ROBOT_GEOMETRY.tireGrip,
@@ -1436,7 +1455,7 @@ function setFormValues(geometry) {
 
     // Visually show/hide sensor rows and rebuild dynamic IR/custom pin rows
     if (typeof window.updateSensorConnectionsUI === 'function') {
-        window.updateSensorConnectionsUI(geometry.sensorCount || 3);
+        window.updateSensorConnectionsUI(geometry.sensorCount !== undefined ? geometry.sensorCount : 3);
     }
 
     if (typeof window.renderPanelConfig === 'function') window.renderPanelConfig();

@@ -47,20 +47,20 @@
     ],
     "connections": {
       "sensorPins": {
-        "custom_0_Trig": "9",
-        "custom_0_Echo": "10",
-        "custom_1_Trig": "11",
-        "custom_1_Echo": "12",
-        "custom_2_Trig": "3",
-        "custom_2_Echo": "4"
+        "custom_0_Trig": "2",
+        "custom_0_Echo": "4",
+        "custom_1_Trig": "7",
+        "custom_1_Echo": "8",
+        "custom_2_Trig": "12",
+        "custom_2_Echo": "13"
       },
       "driverType": "l298n",
       "motorPins": {
         "leftEn": "VCC",
         "leftIn1": "5",
         "leftIn2": "6",
-        "rightIn3": "7",
-        "rightIn4": "8",
+        "rightIn3": "9",
+        "rightIn4": "10",
         "rightEn": "VCC"
       }
     },

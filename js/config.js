@@ -13,7 +13,7 @@ export const DEFAULT_ROBOT_GEOMETRY = {
     sensorOffset_m: 0.05, // Distancia desde el centro del robot al centro de la línea de sensores, hacia adelante
     sensorSpread_m: 0.03, // Distancia desde el sensor central a un sensor lateral
     sensorDiameter_m: 0.005, // Diámetro de cada punto sensor
-    sensorCount: 2,       // <--- Cambiado a 2 por defecto
+    sensorCount: 0,       // <--- Cambiado a 0 por defecto
     robotMass_kg: 0.25,
     comOffset_m: 0.0,
     tireGrip: 0.8,

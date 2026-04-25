@@ -110,8 +110,8 @@ void aplicarMotores(int vL, int vR) {
     digitalWrite(IN3, LOW);
     analogWrite(IN4, abs(vR));
   }
-}\`
-};;
+}
+`};
 
 // Textos explicativos para cada plantilla
 const codeExplanations = {
@@ -146,56 +146,60 @@ require(['vs/editor/editor.main'], function () {
 
     // Make the editor instance available globally
     window.monacoEditor = editor;
-
-    window.monacoEditor = editor;
 });
 
 // --- Descargar y cargar código desde archivo ---
-document.getElementById('downloadCodeButton').addEventListener('click', function () {
-    let code = '';
-    if (window.monacoEditor && typeof window.monacoEditor.getValue === 'function') {
-        code = window.monacoEditor.getValue();
-    } else if (window.editor && typeof window.editor.getValue === 'function') {
-        code = window.editor.getValue();
-    }
-    if (!code) return;
-    const blob = new Blob([code], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'codigo_robot.txt';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }, 100);
-});
-
-document.getElementById('uploadCodeInput').addEventListener('change', function (e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function (evt) {
-        // Cambia el dropdown a 'custom' antes de cargar el código
-        const templateSelect = document.getElementById('codeTemplate');
-        if (templateSelect) templateSelect.value = 'custom';
-        // Si hay un evento de cambio, disparemoslo para que el editor se actualice si es necesario
-        if (templateSelect) {
-            const event = new Event('change', { bubbles: true });
-            templateSelect.dispatchEvent(event);
+const downloadCodeButton = document.getElementById('downloadCodeButton');
+if (downloadCodeButton) {
+    downloadCodeButton.addEventListener('click', function () {
+        let code = '';
+        if (window.monacoEditor && typeof window.monacoEditor.getValue === 'function') {
+            code = window.monacoEditor.getValue();
+        } else if (window.editor && typeof window.editor.getValue === 'function') {
+            code = window.editor.getValue();
         }
-        // Espera un pequeño tiempo para asegurar que el editor esté en modo custom
-        setTimeout(function () {
-            if (window.editor && typeof window.editor.setValue === 'function') {
-                window.editor.setValue(evt.target.result);
-            } else if (typeof editor !== 'undefined' && typeof editor.setValue === 'function') {
-                editor.setValue(evt.target.result);
-            }
+        if (!code) return;
+        const blob = new Blob([code], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'codigo_robot.txt';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }, 100);
-    };
-    reader.readAsText(file);
-});
+    });
+}
+
+const uploadCodeInput = document.getElementById('uploadCodeInput');
+if (uploadCodeInput) {
+    uploadCodeInput.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (evt) {
+            // Cambia el dropdown a 'custom' antes de cargar el código
+            const templateSelect = document.getElementById('codeTemplate');
+            if (templateSelect) templateSelect.value = 'custom';
+            // Si hay un evento de cambio, disparemoslo para que el editor se actualice si es necesario
+            if (templateSelect) {
+                const event = new Event('change', { bubbles: true });
+                templateSelect.dispatchEvent(event);
+            }
+            // Espera un pequeño tiempo para asegurar que el editor esté en modo custom
+            setTimeout(function () {
+                if (window.editor && typeof window.editor.setValue === 'function') {
+                    window.editor.setValue(evt.target.result);
+                } else if (typeof editor !== 'undefined' && typeof editor.setValue === 'function') {
+                    editor.setValue(evt.target.result);
+                }
+            }, 100);
+        };
+        reader.readAsText(file);
+    });
+}
 
 async function loadExampleCode(options = {}) {
     const { silent = false } = options;
@@ -223,9 +227,12 @@ async function loadExampleCode(options = {}) {
 window.loadExampleCode = loadExampleCode;
 
 // --- Cargar código de ejemplo ---
-document.getElementById('loadExampleCodeButton').addEventListener('click', async function () {
-    await loadExampleCode({ silent: false });
-});
+const loadExampleCodeButton = document.getElementById('loadExampleCodeButton');
+if (loadExampleCodeButton) {
+    loadExampleCodeButton.addEventListener('click', async function () {
+        await loadExampleCode({ silent: false });
+    });
+}
 
 // Handle window resize
 window.addEventListener('resize', function () {

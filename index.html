@@ -730,7 +730,6 @@ analogWrite(10, 100); // Avanza motor Derecho (10)
                 </div>
             </div>
         </div>
-        </div>
 
         <!-- Guia Tab -->
         <div id="guia" class="tab-content font-sans text-gray-800 antialiased leading-relaxed">
@@ -1361,7 +1360,7 @@ void loop() {
                                 </optgroup>
                             </select>
                         </div>
-                        <div class="pin-row sensor-pin-config">
+                        <div class="pin-row sensor-pin-config" id="rowSensorLeft">
                             <span>Pin Sensor Izquierdo:</span>
                             <select id="pinSensorLeft">
                                 <option value="" disabled selected>(sin seleccionar)</option>
@@ -1421,7 +1420,7 @@ void loop() {
                                 </optgroup>
                             </select>
                         </div>
-                        <div class="pin-row sensor-pin-config">
+                        <div class="pin-row sensor-pin-config" id="rowSensorRight">
                             <span>Pin Sensor Derecho:</span>
                             <select id="pinSensorRight">
                                 <option value="" disabled selected>(sin seleccionar)</option>
@@ -1776,7 +1775,9 @@ void loop() {
         });
 
         // Inicializar iconos de la Guía
-        lucide.createIcons();
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
 
         function initGuideAccordions() {
             const guideTab = document.getElementById('guia');

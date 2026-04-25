@@ -134,6 +134,17 @@ export function getDOMElements() {
         lblIntShape: document.getElementById('lblIntShape'),
         obstacleShape: document.getElementById('obstacleShape')
     };
+
+    // Verify critical elements
+    const critical = ['simulationDisplayCanvas', 'startSimButton', 'tabButtons'];
+    critical.forEach(id => {
+        const el = elements[id];
+        if (!el || (el instanceof NodeList && el.length === 0)) {
+            console.warn(`Critical UI element missing: ${id}`);
+        }
+    });
+
+    return elements;
 }
 
 export function setupTabs() {
