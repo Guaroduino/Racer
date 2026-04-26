@@ -270,8 +270,6 @@ export function initTrackEditor(appInterface) {
 
     console.log("[TrackEditor] Starting track part assets loading...");
     loadTrackPartAssets(() => {
-        console.log("[TrackEditor] Track part assets loaded, populating palette...");
-        populateTrackPartsPalette(elems.trackPartsPalette);
 
         // Ensure the container is ready and visible
         const container = editorCanvas.parentElement;
@@ -766,66 +764,6 @@ function loadTrackPartAssets(callback) {
     });
 }
 
-function populateTrackPartsPalette(paletteElement) {
-    if (!paletteElement) return;
-    paletteElement.innerHTML = ''; // Clear existing parts
-
-    AVAILABLE_TRACK_PARTS.forEach(partInfo => {
-        const imgContainer = document.createElement('div');
-        imgContainer.style.flexShrink = '0';
-        const imgElement = trackPartsImages[partInfo.file]?.cloneNode() || new Image(70, 70); // Use cached image
-
-        if (!trackPartsImages[partInfo.file]) {
-            imgElement.alt = `${partInfo.name} (imagen no cargada)`;
-            imgElement.style.border = "1px dashed red";
-        } else {
-            imgElement.alt = partInfo.name;
-        }
-        imgElement.title = partInfo.name;
-        imgElement.dataset.partFile = partInfo.file; // Store file name for identification
-
-        imgElement.addEventListener('click', () => {
-            const elems = getDOMElements();
-            
-            // Check if already selected to allow toggling off
-            if (imgElement.classList.contains('selected')) {
-                imgElement.classList.remove('selected');
-                selectedTrackPart = null;
-                return;
-            }
-
-            document.querySelectorAll('#trackPartsPalette img').forEach(p => p.classList.remove('selected'));
-            imgElement.classList.add('selected');
-
-            if (trackPartsImages[partInfo.file]) {
-                selectedTrackPart = { ...partInfo, image: trackPartsImages[partInfo.file] };
-            } else {
-                selectedTrackPart = null;
-                alert(`Imagen para '${partInfo.name}' no disponible.`);
-            }
-
-            // Deselect any interactive tools when selecting a track part
-            const tools = [
-                { id: 'toolModeRFID', mode: 'rfid' },
-                { id: 'toolModeColor', mode: 'color' },
-                { id: 'toolModeHopper', mode: 'hopper' },
-                { id: 'toolModeObstacle', mode: 'obstacle' },
-                { id: 'toolModeMoveInt', mode: 'move' },
-                { id: 'toolModeEraseInt', mode: 'erase' }
-            ];
-            currentToolMode = null;
-            tools.forEach(other => {
-                const ob = document.getElementById(other.id);
-                if (ob) { ob.style.boxShadow = ''; ob.style.backgroundColor = ''; ob.style.color = ''; }
-            });
-            updateInteractiveUI(null, elems);
-            selectedInteractiveElement = null;
-            renderEditor();
-        });
-        imgContainer.appendChild(imgElement);
-        paletteElement.appendChild(imgContainer);
-    });
-}
 
 function setupGrid() {
     grid = Array(currentGridSize.rows).fill(null).map(() => Array(currentGridSize.cols).fill(null));
@@ -1027,17 +965,6 @@ function onGridSingleClick(event) {
     const r = Math.floor(y_canvas / cellSize);
 
     if (r >= 0 && r < currentGridSize.rows && c >= 0 && c < currentGridSize.cols) {
-        if (selectedTrackPart && selectedTrackPart.image) {
-            // Only place new part on single click, not double click
-            if (!event.detail || event.detail === 1) {
-                grid[r][c] = {
-                    ...selectedTrackPart,
-                    rotation_deg: 0 // Initial rotation
-                };
-                // Do NOT unselect the part after placing it so user can place multiple
-                renderEditor();
-            }
-        }
     }
 }
 
@@ -2047,10 +1974,6 @@ function setupInteractiveTools(elems) {
                 }
                 
                 updateInteractiveUI(currentToolMode, elems);
-                
-                // Clear track part selection
-                document.querySelectorAll('#trackPartsPalette img').forEach(p => p.classList.remove('selected'));
-                selectedTrackPart = null;
             });
         }
     });
