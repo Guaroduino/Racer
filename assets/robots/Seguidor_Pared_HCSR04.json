@@ -1,0 +1,115 @@
+{
+  "geometry": {
+    "arduinoBoard": "uno",
+    "width_m": 0.095,
+    "sensorOffset_m": 0.09,
+    "sensorSpread_m": 0.015,
+    "sensorDiameter_m": 0.02,
+    "sensorCount": 0,
+    "robotMass_kg": 0.38,
+    "comOffset_m": 0,
+    "tireGrip": 0.8,
+    "customWheels": {
+      "length_m": 0.04,
+      "width_m": 0.012,
+      "color": "#000000"
+    },
+    "panelScreen": false,
+    "panelButtons": [],
+    "customSensors": [
+      {
+        "type": "hcsr04",
+        "x_mm": 97,
+        "y_mm": 0,
+        "angle": 0,
+        "coneAngle": 10,
+        "maxDistance": 400,
+        "symmetric": false
+      },
+      {
+        "type": "hcsr04",
+        "x_mm": 50,
+        "y_mm": 32,
+        "angle": 60,
+        "coneAngle": 10,
+        "maxDistance": 400,
+        "symmetric": false
+      },
+      {
+        "type": "hcsr04",
+        "x_mm": 50,
+        "y_mm": -32,
+        "angle": -60,
+        "coneAngle": 10,
+        "maxDistance": 399,
+        "symmetric": false
+      }
+    ],
+    "connections": {
+      "sensorPins": {
+        "fullFarLeft": "",
+        "farLeft": "",
+        "left": "",
+        "center": "",
+        "centerLeft": "",
+        "centerRight": "",
+        "right": "",
+        "farRight": "",
+        "fullFarRight": "",
+        "custom_0_Trig": "2",
+        "custom_0_Echo": "4",
+        "custom_1_Trig": "7",
+        "custom_1_Echo": "8",
+        "custom_2_Trig": "12",
+        "custom_2_Echo": "13"
+      },
+      "driverType": "l298n",
+      "motorPins": {
+        "leftEn": "VCC",
+        "leftIn1": "5",
+        "leftIn2": "6",
+        "rightIn3": "9",
+        "rightIn4": "10",
+        "rightEn": "VCC"
+      }
+    },
+    "horizontalSymmetry": false
+  },
+  "parts": [
+    {
+      "id": "chassis2",
+      "name": "Chassis 2",
+      "x": 0.000326797385620921,
+      "y": -0.022412740470537186,
+      "rotation": 0
+    },
+    {
+      "id": "18650",
+      "name": "Batería 18650",
+      "x": 0.001084967320261427,
+      "y": 0.04354803227443324,
+      "rotation": 1.5707963267948966
+    },
+    {
+      "id": "18650",
+      "name": "Batería 18650",
+      "x": 0.001084967320261427,
+      "y": 0.02383561397377963,
+      "rotation": 1.5707963267948966
+    },
+    {
+      "id": "arduino_uno",
+      "name": "Arduino Uno",
+      "x": 0.004875816993464042,
+      "y": -0.012556542888965481,
+      "rotation": 3.141592653589793
+    },
+    {
+      "id": "l298n",
+      "name": "L298N Driver",
+      "x": 0.00032679738562089257,
+      "y": -0.058046738967396865,
+      "rotation": 3.141592653589793
+    }
+  ]
+}

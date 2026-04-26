@@ -1,7 +1,6 @@
 // js/monaco-setup.js
 
-// Esquemas de código simplificados (Solo 2 opciones)
-const codeTemplates = {
+export const codeTemplates = {
     paredDerecha: `#include <NewPing.h>
 
 // ==========================================
@@ -57,6 +56,69 @@ void loop() {
       moverMotores(velReducida, velCrucero); 
     } 
     else if (diferencia > 0) {
+      moverMotores(velCrucero, velReducida);
+    }
+  }
+}
+
+void moverMotores(int vI, int vD) {
+  analogWrite(5, vI);
+  digitalWrite(6, LOW);
+  analogWrite(9, vD);
+  digitalWrite(10, LOW);
+}
+`,
+    paredDerechaToF: `#include <Wire.h>
+#include <Adafruit_VL53L0X.h>
+
+// ==========================================
+// PARAMETROS AJUSTABLES (Configuración)
+// ==========================================
+int velCrucero = 100;      
+int velReducida = 40;      
+int tiempoGiroCiego = 150; 
+int umbralFreno = 100;      // 100mm = 10cm
+int distanciaIdeal = 150;   // 150mm = 15cm
+// ==========================================
+
+// Sensores ToF (Direcciones configuradas en el robot)
+Adafruit_VL53L0X sensorF = Adafruit_VL53L0X(); 
+Adafruit_VL53L0X sensorD = Adafruit_VL53L0X(); 
+Adafruit_VL53L0X sensorI = Adafruit_VL53L0X(); 
+
+void setup() {
+  Serial.begin(115200);
+  
+  // Inicialización (usando las direcciones I2C del diseño)
+  sensorF.begin(0x29); // 0x29 = 41
+  sensorD.begin(0x30); // 0x30 = 48
+  sensorI.begin(0x31); // 0x31 = 49
+
+  pinMode(5, OUTPUT); pinMode(6, OUTPUT);
+  pinMode(9, OUTPUT); pinMode(10, OUTPUT);
+}
+
+void loop() {
+  // LEO DISTANCIAS (en mm)
+  int distF = sensorF.readRange();
+  int distD = sensorD.readRange();
+  int distI = sensorI.readRange();
+
+  // --- EMERGENCIA FRONTAL ---
+  if (distF < umbralFreno) {
+    moverMotores(0, velCrucero); 
+    delay(tiempoGiroCiego);
+  }
+  // --- SEGUIDOR PARED DERECHA ---
+  else {
+    int diferencia = distD - distanciaIdeal;
+    if (abs(diferencia) < 10) {
+      moverMotores(velCrucero, velCrucero);
+    } 
+    else if (diferencia < 0) {
+      moverMotores(velReducida, velCrucero); 
+    } 
+    else {
       moverMotores(velCrucero, velReducida);
     }
   }
@@ -140,12 +202,73 @@ void moverMotores(int vI, int vD) {
   analogWrite(9, vD);
   digitalWrite(10, LOW);
 }
+`,
+    pasillosToF: `#include <Wire.h>
+#include <Adafruit_VL53L0X.h>
+
+// ==========================================
+// PARAMETROS AJUSTABLES (Configuración)
+// ==========================================
+int velCrucero = 100;
+int velReducida = 40;
+int tiempoGiroCiego = 100;
+int umbralFreno = 100;      // 10cm
+// ==========================================
+
+Adafruit_VL53L0X sensorF = Adafruit_VL53L0X(); 
+Adafruit_VL53L0X sensorD = Adafruit_VL53L0X(); 
+Adafruit_VL53L0X sensorI = Adafruit_VL53L0X(); 
+
+void setup() {
+  Serial.begin(115200);
+  sensorF.begin(0x29);
+  sensorD.begin(0x30);
+  sensorI.begin(0x31);
+
+  pinMode(5, OUTPUT); pinMode(6, OUTPUT);
+  pinMode(9, OUTPUT); pinMode(10, OUTPUT);
+}
+
+void loop() {
+  int distF = sensorF.readRange();
+  int distD = sensorD.readRange();
+  int distI = sensorI.readRange();
+
+  // --- EMERGENCIA ---
+  if (distF < umbralFreno) {
+    if (distI > distD) moverMotores(0, velCrucero);
+    else moverMotores(velCrucero, 0);
+    delay(tiempoGiroCiego);
+  }
+  // --- CENTRADO EN PASILLO ---
+  else {
+    int diferencia = distI - distD;
+    if (abs(diferencia) < 15) {
+      moverMotores(velCrucero, velCrucero);
+    }
+    else if (diferencia < 0) {
+      moverMotores(velCrucero, velReducida);
+    }
+    else {
+      moverMotores(velReducida, velCrucero);
+    }
+  }
+}
+
+void moverMotores(int vI, int vD) {
+  analogWrite(5, vI);
+  digitalWrite(6, LOW);
+  analogWrite(9, vD);
+  digitalWrite(10, LOW);
+}
 `
 };
 
 const codeExplanations = {
-    paredDerecha: `🌟 <b>Seguidor de Pared Derecha</b>\n\nMantiene una distancia fija (15cm) respecto a la pared derecha usando un sensor ultrasónico lateral.`,
-    pasillos: `🌟 <b>Seguidor de Pasillos</b>\n\nMantiene el robot en el centro del pasillo comparando las distancias de los sensores izquierdo y derecho.`
+    paredDerecha: `🌟 <b>Seguidor de Pared Derecha (Ultrasonido)</b>\n\nMantiene una distancia fija (15cm) respecto a la pared derecha usando un sensor HC-SR04.`,
+    paredDerechaToF: `🌟 <b>Seguidor de Pared Derecha (ToF)</b>\n\nMantiene una distancia fija (150mm) usando sensores láser VL53L0X con direcciones I2C independientes.`,
+    pasillos: `🌟 <b>Seguidor de Pasillos (Ultrasonido)</b>\n\nMantiene el robot en el centro del pasillo comparando las distancias de los sensores ultrasónicos izquierdo y derecho.`,
+    pasillosToF: `🌟 <b>Seguidor de Pasillos (ToF)</b>\n\nCentrado preciso en pasillos usando la tecnología láser de los sensores ToF.`
 };
 
 let editor;

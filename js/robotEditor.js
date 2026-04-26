@@ -1128,8 +1128,8 @@ export function initRobotEditor(appInterface) {
 
     window.loadExampleRobot = async function(options = {}) {
         try {
-            const response = await fetch('assets/robots/Robot Ejemplo.json');
-            if (!response.ok) throw new Error('No se pudo cargar el Robot Ejemplo.json');
+            const response = await fetch('assets/robots/Seguidor_Pared_HCSR04.json');
+            if (!response.ok) throw new Error('No se pudo cargar el Seguidor_Pared_HCSR04.json');
             const robotData = await response.json();
             
             if (robotData.geometry) {
@@ -1785,8 +1785,8 @@ function getPlacedPartsRaw() {
 
 export async function loadDefaultRobotJSON() {
     try {
-        const response = await fetch('assets/robots/Robot Ejemplo.json');
-        if (!response.ok) throw new Error('No se pudo cargar Robot Ejemplo.json');
+        const response = await fetch('assets/robots/Seguidor_Pared_HCSR04.json');
+        if (!response.ok) throw new Error('No se pudo cargar Seguidor_Pared_HCSR04.json');
         const robotData = await response.json();
         if (robotData.geometry) {
             setFormValues(robotData.geometry);
@@ -1812,9 +1812,8 @@ async function initRobotSelectionDropdown() {
     
     // Add predefined robots
     const robots = [
-        { name: 'Robot Genérico OnOff', file: 'Robot Generico OnOff.json' },
-        { name: 'SL Genérico', file: 'SL Generico.json' },
-        { name: 'SLC SVP 2025', file: 'SLC_SVP_2025.json' }
+        { name: 'Seguidor de Pared 3 sensores HCR04', file: 'Seguidor_Pared_HCSR04.json' },
+        { name: 'Seguidor de Pared 3 sensores ToF', file: 'Seguidor_Pared_ToF.json' }
     ];
 
     dropdowns.forEach(dropdown => {
@@ -1822,13 +1821,13 @@ async function initRobotSelectionDropdown() {
         const defaultOption = document.createElement('option');
         defaultOption.value = '';
         defaultOption.textContent = 'Seleccionar robot...';
-        defaultOption.selected = true; // <--- Seleccionado por defecto para forzar cambio al elegir uno
         dropdown.appendChild(defaultOption);
 
-        robots.forEach((robot) => {
+        robots.forEach((robot, index) => {
             const option = document.createElement('option');
             option.value = robot.file;
             option.textContent = robot.name;
+            if (index === 0) option.selected = true; 
             dropdown.appendChild(option);
         });
 

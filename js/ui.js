@@ -1,7 +1,7 @@
 // js/ui.js
 
 export function getDOMElements() {
-    return {
+    const elements = {
         // Tabs
         tabButtons: document.querySelectorAll('.tab-button'),
         tabContents: document.querySelectorAll('.tab-content'),
