@@ -1,0 +1,28 @@
+{
+  "short_name": "StudioRender",
+  "name": "Studio Render // SketchUp to Photorealistic",
+  "description": "Transform 3D SketchUp renders into photorealistic architectural photographs.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "display": "standalone",
+  "scope": "/"
+}
