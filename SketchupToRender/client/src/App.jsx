@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { auth, db, storage } from './firebase';
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, addDoc, onSnapshot, serverTimestamp, collection } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
@@ -245,6 +245,24 @@ function App() {
       setIsLoggingIn(false);
     }
   };
+
+  const handleGoogleLogin = async () => {
+    setAuthError('');
+    setIsLoggingIn(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (err) {
+      console.error(err);
+      let errMsg = 'Error al iniciar sesión con Google.';
+      if (err.code === 'auth/popup-closed-by-user') errMsg = 'El popup fue cerrado por el usuario.';
+      if (err.code === 'auth/operation-not-allowed') errMsg = 'El proveedor de Google no está habilitado en Firebase.';
+      setAuthError(errMsg);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
 
   const handleLogout = async () => {
     try {
@@ -1244,39 +1262,74 @@ function App() {
                 </div>
               )}
 
-              <form onSubmit={handleLogin} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Correo Electrónico</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 transition"
-                    placeholder="tu@correo.com"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Contraseña</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 transition"
-                    placeholder="••••••••"
-                  />
-                </div>
-
+              <div className="flex flex-col gap-4">
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleGoogleLogin}
                   disabled={isLoggingIn}
-                  className="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-medium py-2 rounded-lg text-sm shadow-sm transition disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 bg-white hover:bg-zinc-50 text-zinc-700 font-medium py-2.5 px-4 border border-zinc-200 rounded-lg text-sm shadow-sm transition duration-150 disabled:opacity-50 cursor-pointer"
                 >
-                  {isLoggingIn ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.9h6.6c-.28 1.5-.7 2.76-1.81 3.51l2.85 2.22c1.66-1.53 2.61-3.8 2.61-6.55z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-2.85-2.22c-.79.53-1.8.85-3.08.85-2.38 0-4.4-1.6-5.12-3.78L1.04 18.15c2.08 4.14 6.38 6.9 11.31 6.9z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M6.88 15.94c-.18-.53-.28-1.1-.28-1.69s.1-1.15.28-1.69L1.04 7.98C.37 9.3 0 10.78 0 12.35s.37 3.05 1.04 4.37l5.84-4.57z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.07 0 2.77 2.76.69 6.9l5.84 4.57c.72-2.19 2.74-3.78 5.12-3.78z"
+                    />
+                  </svg>
+                  {isLoggingIn ? 'Conectando...' : 'Iniciar Sesión con Google'}
                 </button>
-              </form>
+
+                <div className="flex items-center my-1">
+                  <div className="flex-1 border-t border-zinc-100"></div>
+                  <span className="px-3 text-[9px] text-zinc-400 font-mono uppercase tracking-wider">o usar correo</span>
+                  <div className="flex-1 border-t border-zinc-100"></div>
+                </div>
+
+                <form onSubmit={handleLogin} className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Correo Electrónico</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full px-3 py-1.5 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 transition"
+                      placeholder="tu@correo.com"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Contraseña</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="w-full px-3 py-1.5 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 transition"
+                      placeholder="••••••••"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoggingIn}
+                    className="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-medium py-1.5 rounded-lg text-xs shadow-sm transition disabled:opacity-50 cursor-pointer"
+                  >
+                    {isLoggingIn ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+                  </button>
+                </form>
+              </div>
               
               <p className="text-[10px] text-center text-zinc-400">
                 La cuenta debe estar previamente registrada en tu consola de Firebase Auth.
