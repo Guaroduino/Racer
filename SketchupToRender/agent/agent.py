@@ -53,6 +53,7 @@ except Exception as e:
 # Cola de procesamiento en memoria para no sobrecargar la GPU
 job_queue = queue.Queue()
 processed_job_ids = set()
+last_user_requests = {}
 
 def scan_comfy_url():
     """Detecta el puerto activo de ComfyUI (8188 o 8000)"""
@@ -111,6 +112,84 @@ def process_job(job_id, doc_data):
     temp_files = []
     
     try:
+        tipo_trabajo = doc_data.get('tipo', 'generate')
+        params = doc_data.get('parametros', {})
+        imagenes_entrada = doc_data.get('imagenesEntrada', {})
+        userId = doc_data.get('userId')
+        
+        # --- CONTROL DE DE-DUPLICACIÓN POR TIEMPO ---
+        now = time.time()
+        is_duplicate = False
+        original_doc_id = None
+        
+        if userId:
+            last_req = last_user_requests.get(userId)
+            if last_req:
+                time_diff = now - last_req['timestamp']
+                same_prompt = params.get('prompt') == last_req['prompt']
+                
+                # Obtener la imagen para comparar
+                current_img = imagenes_entrada.get('image')
+                same_image = current_img == last_req['image']
+                
+                # Si llega la misma petición en menos de 12 segundos, es duplicado
+                if time_diff < 12.0 and same_prompt and same_image:
+                    is_duplicate = True
+                    original_doc_id = last_req['doc_id']
+        
+        if is_duplicate and original_doc_id:
+            print(f"[{job_id}] DETECTADA SOLICITUD DUPLICADA. Sincronizando con trabajo original: {original_doc_id}")
+            doc_ref.update({
+                'estado': 'procesando',
+                'progreso': 50,
+                'progresoMsg': 'Duplicado detectado. Sincronizando con render original...'
+            })
+            
+            # Esperar a que el trabajo original termine
+            orig_completed = False
+            orig_ref = db.collection('cola_trabajos').document(original_doc_id)
+            
+            for _ in range(300): # 5 minutos max
+                orig_snap = orig_ref.get()
+                if orig_snap.exists:
+                    orig_data = orig_snap.to_dict()
+                    orig_status = orig_data.get('estado')
+                    if orig_status == 'completado':
+                        doc_ref.update({
+                            'estado': 'completado',
+                            'progreso': 100,
+                            'progresoMsg': 'Render completado (Duplicado sincronizado)',
+                            'imagenesSalida': orig_data.get('imagenesSalida'),
+                            'actualizadoEn': firestore.SERVER_TIMESTAMP
+                        })
+                        orig_completed = True
+                        print(f"[{job_id}] Trabajo duplicado sincronizado y completado con éxito.")
+                        break
+                    elif orig_status == 'error':
+                        doc_ref.update({
+                            'estado': 'error',
+                            'error': orig_data.get('error', 'Error en el render original'),
+                            'progresoMsg': 'Fallo en render original',
+                            'actualizadoEn': firestore.SERVER_TIMESTAMP
+                        })
+                        orig_completed = True
+                        print(f"[{job_id}] Sincronización finalizada por error en el original.")
+                        break
+                time.sleep(1.0)
+                
+            if not orig_completed:
+                raise Exception("El render original tardó demasiado o no se pudo sincronizar.")
+            return # Salir del procesamiento sin llamar a ComfyUI
+            
+        # Si no es duplicada, registramos esta petición como la última de este usuario
+        if userId:
+            last_user_requests[userId] = {
+                'timestamp': now,
+                'prompt': params.get('prompt'),
+                'image': imagenes_entrada.get('image'),
+                'doc_id': job_id
+            }
+
         # 1. Actualizar estado a procesando
         print(f"\n[{job_id}] Iniciando procesamiento...")
         doc_ref.update({
@@ -121,11 +200,6 @@ def process_job(job_id, doc_data):
         
         comfy_url = scan_comfy_url()
         print(f"[{job_id}] Usando servidor ComfyUI en: {comfy_url}")
-        
-        tipo_trabajo = doc_data.get('tipo', 'generate')
-        params = doc_data.get('parametros', {})
-        imagenes_entrada = doc_data.get('imagenesEntrada', {})
-        userId = doc_data.get('userId')
         
         # Crear directorio temporal para descargas
         with tempfile.TemporaryDirectory() as temp_dir:
