@@ -1,4 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import { auth, db, storage } from './firebase';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { doc, addDoc, onSnapshot, serverTimestamp, collection } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+
 
 const DEFAULT_BASE_PROMPT = `convert this image into a photorealistic architectural exterior photograph of a modern residential house, completely blending and removing all technical lines and outlines. Use the attached image solely as a reference for layout, material style, and soft natural illumination.
 
@@ -204,6 +209,78 @@ const handleDownloadImage = async (imgUrl, defaultName) => {
 function App() {
   const [mainImage, setMainImage] = useState(null);
   const [mainPreview, setMainPreview] = useState(null);
+
+  // Firebase integration states
+  const [workMode, setWorkMode] = useState('local');
+  const [user, setUser] = useState(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Monitor user login state
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    setIsLoggingIn(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      setEmail('');
+      setPassword('');
+    } catch (err) {
+      console.error(err);
+      let errMsg = 'Error al iniciar sesión. Comprueba tus credenciales.';
+      if (err.code === 'auth/user-not-found') errMsg = 'El usuario no está registrado.';
+      if (err.code === 'auth/wrong-password') errMsg = 'Contraseña incorrecta.';
+      if (err.code === 'auth/invalid-credential') errMsg = 'Credenciales inválidas.';
+      setAuthError(errMsg);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
+
+  // Helper to upload images to Firebase Storage
+  const uploadToFirebaseStorage = (file, pathStr) => {
+    return new Promise((resolve, reject) => {
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      const storageRef = ref(storage, pathStr);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+      
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          const progressVal = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          setProgress(Math.round(progressVal * 0.9)); // 90% is upload, 10% is queue
+          setProgressMessage(`Subiendo archivo a la nube (${progressVal}%)...`);
+        }, 
+        (err) => {
+          reject(err);
+        }, 
+        async () => {
+          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(downloadUrl);
+        }
+      );
+    });
+  };
+
   const [prompt, setPrompt] = useState('');
   
   // Optional style references
@@ -491,6 +568,130 @@ function App() {
     setProgressMessage('Subiendo render original de SketchUp...');
     setGenerationStage('uploading');
 
+    if (workMode === 'internet') {
+      if (!user) {
+        setError('Debes iniciar sesión para usar el Modo Internet.');
+        setIsGenerating(false);
+        setGenerationStage('idle');
+        return;
+      }
+      
+      try {
+        const timestamp = Date.now();
+        // 1. Upload images to Firebase Storage
+        const mainImageUrl = await uploadToFirebaseStorage(mainImage, `usuarios/${user.uid}/inputs/${timestamp}_main.jpg`);
+        
+        let ref1Url = null;
+        if (refImage1) {
+          ref1Url = await uploadToFirebaseStorage(refImage1, `usuarios/${user.uid}/inputs/${timestamp}_ref1.jpg`);
+        }
+        
+        let ref2Url = null;
+        if (refImage2) {
+          ref2Url = await uploadToFirebaseStorage(refImage2, `usuarios/${user.uid}/inputs/${timestamp}_ref2.jpg`);
+        }
+        
+        // 2. Create firestore document
+        setProgressMessage('Encolando trabajo en la nube...');
+        setProgress(92);
+        
+        const docRef = await addDoc(collection(db, 'cola_trabajos'), {
+          userId: user.uid,
+          estado: 'pendiente',
+          tipo: genMode === 'only_4k' ? 'upscale' : 'generate',
+          parametros: {
+            sceneType,
+            spaceType,
+            prompt,
+            fullPrompt,
+            useTwoPass,
+            sketchPrompt,
+            sketchDenoise,
+            renderDenoise,
+            sketchCfg,
+            renderCfg,
+            lightingPreset,
+            stylePreset,
+            colorPreset,
+            ref1Materials,
+            ref1Illumination,
+            ref1CustomPrompt,
+            ref2Materials,
+            ref2Illumination,
+            ref2CustomPrompt,
+            upscaleMethod
+          },
+          imagenesEntrada: {
+            image: mainImageUrl,
+            refImage1: ref1Url,
+            refImage2: ref2Url
+          },
+          imagenesSalida: {
+            image: null,
+            sketchImage: null
+          },
+          progreso: 0,
+          progresoMsg: 'En cola en la nube',
+          error: null,
+          creadoEn: serverTimestamp(),
+          actualizadoEn: serverTimestamp()
+        });
+        
+        setProgressMessage('Trabajo registrado. Esperando al agente local...');
+        setProgress(95);
+        
+        // 3. Listen to document changes in real time
+        const unsub = onSnapshot(docRef, (snap) => {
+          if (!snap.exists()) return;
+          const data = snap.data();
+          
+          if (data.progreso !== undefined) {
+            setProgress(data.progreso);
+          }
+          if (data.progresoMsg) {
+            setProgressMessage(data.progresoMsg);
+          }
+          
+          if (data.estado === 'procesando') {
+            setGenerationStage('generating');
+          } else if (data.estado === 'completado') {
+            unsub();
+            setIsGenerating(false);
+            setGenerationStage('idle');
+            setProgress(100);
+            setProgressMessage('Render completado con éxito!');
+            
+            if (data.imagenesSalida.image) {
+              setResultImage(data.imagenesSalida.image);
+              setResultFilename(data.imagenesSalida.image.split('%2F').pop().split('?')[0]);
+            }
+            if (data.imagenesSalida.sketchImage) {
+              setSketchImage(data.imagenesSalida.sketchImage);
+            }
+            if (genMode === 'only_4k') {
+              setUpscaledImage(data.imagenesSalida.image);
+              setUpscaledFilename(data.imagenesSalida.image.split('%2F').pop().split('?')[0]);
+              setActiveTab('upscaled');
+            }
+          } else if (data.estado === 'error') {
+            unsub();
+            setIsGenerating(false);
+            setGenerationStage('idle');
+            setError(data.error || 'Ocurrió un error en el servidor de ComfyUI local.');
+          }
+        });
+        
+        return; // Detener flujo local
+      } catch (err) {
+        console.error(err);
+        setError(err.message || 'Error al enviar el trabajo en modo Internet.');
+        setIsGenerating(false);
+        setGenerationStage('idle');
+        return;
+      }
+    }
+
+
     // Generate a unique client ID for ComfyUI WS tracking
     const clientId = Math.random().toString(36).substring(2, 15);
 
@@ -744,6 +945,79 @@ function App() {
     setIsGenerating(true); // Show loading overlay and disable inputs
     setGenerationStage('generating');
 
+    if (workMode === 'internet') {
+      if (!user) {
+        setError('Debes iniciar sesión para usar el Modo Internet.');
+        setIsGenerating(false);
+        setIsUpscaling(false);
+        setGenerationStage('idle');
+        return;
+      }
+      
+      try {
+        setProgressMessage('Creando trabajo de escalado a 4K en la nube...');
+        setProgress(30);
+        
+        const docRef = await addDoc(collection(db, 'cola_trabajos'), {
+          userId: user.uid,
+          estado: 'pendiente',
+          tipo: 'upscale',
+          parametros: {
+            filename: resultFilename,
+            upscaleMethod: upscaleMethod
+          },
+          imagenesEntrada: {
+            image: resultImage // URL de Firebase Storage de la imagen fotorrealista a escalar
+          },
+          imagenesSalida: {
+            image: null
+          },
+          progreso: 0,
+          progresoMsg: 'En cola para 4K',
+          error: null,
+          creadoEn: serverTimestamp(),
+          actualizadoEn: serverTimestamp()
+        });
+        
+        const unsub = onSnapshot(docRef, (snap) => {
+          if (!snap.exists()) return;
+          const data = snap.data();
+          
+          if (data.progreso !== undefined) {
+            setProgress(data.progreso);
+          }
+          if (data.progresoMsg) {
+            setProgressMessage(data.progresoMsg);
+          }
+          
+          if (data.estado === 'completado') {
+            unsub();
+            setIsGenerating(false);
+            setIsUpscaling(false);
+            setProgress(100);
+            setProgressMessage('Conversión a 4K completada con éxito!');
+            setUpscaledImage(data.imagenesSalida.image);
+            setUpscaledFilename(data.imagenesSalida.image.split('%2F').pop().split('?')[0]);
+            setActiveTab('upscaled');
+          } else if (data.estado === 'error') {
+            unsub();
+            setIsGenerating(false);
+            setIsUpscaling(false);
+            setError(data.error || 'Ocurrió un error durante la conversión a 4K.');
+          }
+        });
+        
+        return;
+      } catch (err) {
+        console.error(err);
+        setError(err.message || 'Error al iniciar la conversión a 4K en modo Internet.');
+        setIsGenerating(false);
+        setIsUpscaling(false);
+        setGenerationStage('idle');
+        return;
+      }
+    }
+
     const clientId = Math.random().toString(36).substring(2, 15);
 
     try {
@@ -899,10 +1173,44 @@ function App() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-[11px] font-medium text-emerald-800">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            ComfyUI Conectado
+          <div className="flex items-center bg-zinc-100 p-0.5 rounded-lg border border-zinc-200">
+            <button
+              type="button"
+              onClick={() => setWorkMode('local')}
+              className={`px-3 py-1 rounded text-xs font-semibold transition duration-150 ${workMode === 'local' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
+            >
+              LAN
+            </button>
+            <button
+              type="button"
+              onClick={() => setWorkMode('internet')}
+              className={`px-3 py-1 rounded text-xs font-semibold transition duration-150 ${workMode === 'internet' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
+            >
+              Internet
+            </button>
           </div>
+
+          {workMode === 'local' ? (
+            <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-[11px] font-medium text-emerald-800">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              ComfyUI Local
+            </div>
+          ) : (
+            <div className={`hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full ${user ? 'bg-sky-50 border-sky-100 text-sky-800' : 'bg-amber-50 border-amber-100 text-amber-800'} text-[11px] font-medium`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${user ? 'bg-sky-500 animate-pulse' : 'bg-amber-500'}`}></span>
+              {user ? user.email.split('@')[0] : 'Firebase Desconectado'}
+            </div>
+          )}
+
+          {workMode === 'internet' && user && (
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="text-[10px] text-zinc-500 hover:text-red-500 font-semibold underline transition duration-150 border-none bg-transparent cursor-pointer"
+            >
+              Salir
+            </button>
+          )}
 
           {showInstallBtn && (
             <button
@@ -923,12 +1231,65 @@ function App() {
         
         {/* Left Panel - Control Board */}
         <section className="lg:col-span-5 border-b lg:border-b-0 lg:border-r border-zinc-100 bg-white p-6 flex flex-col gap-6 lg:overflow-y-auto lg:max-h-[calc(100vh-69px)]">
-          <div className="flex flex-col">
-            <h2 className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 font-semibold">Panel de Control</h2>
-            <p className="text-xs text-zinc-500 mt-0.5">Configura tus opciones de renderizado e indicaciones de estilo.</p>
-          </div>
+          {workMode === 'internet' && !user ? (
+            <div className="flex flex-col gap-5 my-auto justify-center py-8">
+              <div className="flex flex-col text-center gap-1">
+                <h2 className="text-xl font-bold tracking-tight text-zinc-900">Modo Internet</h2>
+                <p className="text-xs text-zinc-500">Inicia sesión con Firebase para conectarte de forma remota a tu servidor local.</p>
+              </div>
+              
+              {authError && (
+                <div className="bg-red-50 border border-red-100 text-red-700 text-xs p-3 rounded-lg">
+                  {authError}
+                </div>
+              )}
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+              <form onSubmit={handleLogin} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Correo Electrónico</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 transition"
+                    placeholder="tu@correo.com"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Contraseña</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 transition"
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoggingIn}
+                  className="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-medium py-2 rounded-lg text-sm shadow-sm transition disabled:opacity-50"
+                >
+                  {isLoggingIn ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+                </button>
+              </form>
+              
+              <p className="text-[10px] text-center text-zinc-400">
+                La cuenta debe estar previamente registrada en tu consola de Firebase Auth.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col">
+                <h2 className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 font-semibold">Panel de Control</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">Configura tus opciones de renderizado e indicaciones de estilo.</p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="flex flex-col gap-6">
             
             {/* Main Render Slot */}
             <div className="flex flex-col gap-2">
@@ -1732,7 +2093,9 @@ function App() {
               )}
             </button>
           </form>
-        </section>
+        </>
+      )}
+    </section>
 
         {/* Right Panel - Output Canvas */}
         <section className="lg:col-span-7 bg-[#fafafa] p-6 flex flex-col gap-4 max-h-[calc(100vh-69px)]">
