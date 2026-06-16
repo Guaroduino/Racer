@@ -33,6 +33,24 @@ firebase_admin.initialize_app(cred, {
 db = firestore.client()
 bucket = storage.bucket()
 
+# Configurar CORS para permitir subidas desde el navegador web
+print("[Firebase] Configurando políticas CORS en el bucket de Storage...")
+try:
+    bucket.cors = [
+        {
+            'origin': ['*'],
+            'method': ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+            'responseHeader': ['Content-Type', 'Authorization', 'x-firebase-storage-version', 'x-requested-with'],
+            'maxAgeSeconds': 3600
+        }
+    ]
+    bucket.update()
+    print("[Firebase] ¡CORS configurado con éxito!")
+except Exception as e:
+    print(f"[Firebase Warning] No se pudo configurar CORS automáticamente: {e}")
+    print("Asegúrate de que tu cuenta de servicio tenga los permisos de rol 'Administrador de Storage' o configura CORS manualmente.")
+
+
 # Cola de procesamiento en memoria para no sobrecargar la GPU
 job_queue = queue.Queue()
 
