@@ -47,6 +47,9 @@ goto comfy_end
 
 :comfy_end
 echo.
+echo [Agente] Limpiando posibles instancias huerfanas de agentes anteriores...
+powershell -Command "Get-CimInstance Win32_Process -Filter \"name = 'python.exe'\" | Where-Object { $_.CommandLine -like '*agent.py*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" 2>nul
+echo.
 echo [Agente] Iniciando agente de conexion Firebase...
 python agent/agent.py
 pause

@@ -4,12 +4,31 @@ import time
 import json
 import uuid
 import queue
+import socket
 import threading
 import tempfile
 import requests
 from urllib.parse import quote_plus
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
+
+# Evitar múltiples instancias del agente ejecutándose al mismo tiempo
+# (Previene procesos huérfanos/zombies que causan renders duplicados en ComfyUI)
+try:
+    # Mantenemos el socket abierto en una variable global para evitar el garbage collection
+    _instance_lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    _instance_lock_socket.bind(('127.0.0.1', 19999))
+except socket.error:
+    print("\n" + "=" * 80)
+    print(" ERROR CRÍTICO: ¡YA HAY UNA INSTANCIA DEL AGENTE ACTIVA EN TU SISTEMA!")
+    print(" Para evitar renders duplicados en ComfyUI, no se permite iniciar otra.")
+    print(" ")
+    print(" Si cerraste la ventana anterior y sigue saliendo este error:")
+    print(" Abre el Administrador de Tareas y finaliza los procesos de 'python.exe'")
+    print(" o ejecuta el comando: Stop-Process -Name python -Force en PowerShell.")
+    print("=" * 80 + "\n")
+    time.sleep(5)
+    sys.exit(1)
 
 # Configuración del entorno
 CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), 'serviceAccountKey.json')
