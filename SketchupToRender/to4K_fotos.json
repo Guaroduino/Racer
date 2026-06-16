@@ -1,0 +1,155 @@
+{
+  "1": {
+    "inputs": {
+      "image": "Pon_Aqui_Tu_Render.jpg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "1. Cargar Imagen Generada"
+    }
+  },
+  "2": {
+    "inputs": {
+      "model_name": "4x-UltraSharp.pth"
+    },
+    "class_type": "UpscaleModelLoader",
+    "_meta": {
+      "title": "2. Cargar Motor 4x-UltraSharp"
+    }
+  },
+  "3": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "3. Cargar VAE"
+    }
+  },
+  "4": {
+    "inputs": {
+      "unet_name": "qwen_image_edit_2509_fp8_e4m3fn.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "4. Cargar Modelo de Difusión"
+    }
+  },
+  "5": {
+    "inputs": {
+      "lora_name": "Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors",
+      "strength_model": 1,
+      "model": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "5. Activar LoRA Lightning"
+    }
+  },
+  "6": {
+    "inputs": {
+      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "6. Cargar CLIP de Qwen"
+    }
+  },
+  "7": {
+    "inputs": {
+      "text": "hyper-realistic and sharp photography, highly detailed, photorealistic, cinematic light, crisp 4k definition, award-winning photography, shot on 35mm lens.",
+      "clip": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "7. Inyección de Texturas (Positivo)"
+    }
+  },
+  "8": {
+    "inputs": {
+      "text": "blurry, low quality, distorted, worst quality, noise, artifacts",
+      "clip": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "8. Prompt Negativo Vacío"
+    }
+  },
+  "9": {
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "model": [
+        "5",
+        0
+      ],
+      "positive": [
+        "7",
+        0
+      ],
+      "negative": [
+        "8",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ],
+      "upscale_by": 4.0,
+      "seed": 858539556181995,
+      "steps": 4,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 0.12,
+      "upscale_model": [
+        "2",
+        0
+      ],
+      "mode_type": "Linear",
+      "tile_width": 1024,
+      "tile_height": 1024,
+      "mask_blur": 16,
+      "tile_padding": 32,
+      "seam_fix_mode": "Half Tile",
+      "seam_fix_denoise": 1.0,
+      "seam_fix_width": 64,
+      "seam_fix_mask_blur": 8,
+      "seam_fix_padding": 16,
+      "force_uniform_tiles": true,
+      "tiled_decode": false,
+      "batch_size": 1
+    },
+    "class_type": "UltimateSDUpscale",
+    "_meta": {
+      "title": "9. Ultimate SD Upscale"
+    }
+  },
+  "10": {
+    "inputs": {
+      "filename_prefix": "Render_4K_Modular",
+      "images": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "12. GUARDAR IMAGEN 4K FINAL"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "1": {
+    "inputs": {
+      "image": "Pon_Aqui_Tu_Render.jpg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "1. Cargar Imagen Generada"
+    }
+  },
+  "2": {
+    "inputs": {
+      "model_name": "4x-UltraSharp.pth"
+    },
+    "class_type": "UpscaleModelLoader",
+    "_meta": {
+      "title": "2. Cargar Motor 4x-UltraSharp"
+    }
+  },
+  "3": {
+    "inputs": {
+      "upscale_model": [
+        "2",
+        0
+      ],
+      "image": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "ImageUpscaleWithModel",
+    "_meta": {
+      "title": "3. Escalar con Modelo"
+    }
+  },
+  "4": {
+    "inputs": {
+      "filename_prefix": "Render_4K_UltraSharp",
+      "images": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "4. Guardar Imagen"
+    }
+  }
+}

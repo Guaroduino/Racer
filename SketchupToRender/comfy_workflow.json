@@ -21,6 +21,232 @@
       "title": "Load Image"
     }
   },
+  "142": {
+    "inputs": {
+      "filename_prefix": "sketchAi",
+      "images": [
+        "141:138",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "141:124": {
+    "inputs": {
+      "strength": 1,
+      "pre_cfg": false,
+      "model": [
+        "141:131",
+        0
+      ]
+    },
+    "class_type": "CFGNorm",
+    "_meta": {
+      "title": "CFGNorm"
+    }
+  },
+  "141:125": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "141:126": {
+    "inputs": {
+      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "141:127": {
+    "inputs": {
+      "unet_name": "qwen_image_edit_2509_fp8_e4m3fn.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "141:128": {
+    "inputs": {
+      "prompt": "",
+      "clip": [
+        "141:126",
+        0
+      ],
+      "vae": [
+        "141:125",
+        0
+      ],
+      "image1": [
+        "141:136",
+        0
+      ]
+    },
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "_meta": {
+      "title": "TextEncodeQwenImageEditPlus"
+    }
+  },
+  "141:131": {
+    "inputs": {
+      "shift": 3,
+      "model": [
+        "141:140",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingAuraFlow",
+    "_meta": {
+      "title": "ModelSamplingAuraFlow"
+    }
+  },
+  "141:132": {
+    "inputs": {
+      "prompt": "convert this image into a marker and ink drawing. Keep material details, colors, surfaces texturing,add light hatch to flat surface to cleary show them",
+      "clip": [
+        "141:126",
+        0
+      ],
+      "vae": [
+        "141:125",
+        0
+      ],
+      "image1": [
+        "141:136",
+        0
+      ]
+    },
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "_meta": {
+      "title": "TextEncodeQwenImageEditPlus"
+    }
+  },
+  "141:133": {
+    "inputs": {
+      "width": 2560,
+      "height": 1440,
+      "batch_size": 1
+    },
+    "class_type": "EmptySD3LatentImage",
+    "_meta": {
+      "title": "EmptySD3LatentImage"
+    }
+  },
+  "141:135": {
+    "inputs": {
+      "pixels": [
+        "141:136",
+        0
+      ],
+      "vae": [
+        "141:125",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode"
+    }
+  },
+  "141:136": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 1,
+      "image": [
+        "78",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": "Scale Image to Total Pixels"
+    }
+  },
+  "141:137": {
+    "inputs": {
+      "seed": 987067865740858,
+      "steps": 4,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "141:124",
+        0
+      ],
+      "positive": [
+        "141:132",
+        0
+      ],
+      "negative": [
+        "141:128",
+        0
+      ],
+      "latent_image": [
+        "141:135",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "141:138": {
+    "inputs": {
+      "samples": [
+        "141:137",
+        0
+      ],
+      "vae": [
+        "141:125",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "141:139": {
+    "inputs": {
+      "images": [
+        "141:138",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "141:140": {
+    "inputs": {
+      "lora_name": "Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors",
+      "strength_model": 1,
+      "model": [
+        "141:127",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "Load LoRA"
+    }
+  },
   "115:75": {
     "inputs": {
       "strength": 1,
@@ -101,7 +327,7 @@
   },
   "115:111": {
     "inputs": {
-      "prompt": "convert this iamge to a realistic stock architectural photograph. Use the attached iamge as a style, ilumination and details guide\n\nmasterpiece, professional architectural photography, award-winning interior and exterior design, hyper-realistic, photorealistic, captured on 35mm lens, f/2.8 aperture, shot on Sony A7R V, highly detailed textures, volumetric natural lighting, realistic soft shadows and ambient occlusion, subtle dust motes in the air, natural imperfections, slight surface smudges, crisp focus with elegant depth of field, accurate material reflections, realistic glass refraction, micro-textures on concrete and wood, weathered edges, lived-in atmosphere, cinematic composition, 8k resolution, rich color grading.\n\nAvoid: 3d render, blender, sketchup, CGI, plastic textures, perfect geometry, sharp artificial edges, oversaturated colors, fake reflections, rendering white dots.",
+      "prompt": "convert this image into a photorealistic architectural photograph, completely blending and removing all technical lines and outlines. Use the attached image solely as a reference for layout, material style, and soft natural illumination.\n\nmasterpiece, professional architectural photography, award-winning interior design, hyper-realistic, high-end real estate photo, shot on Sony A7R V, 35mm lens, f/2.8, seamless wall junctions, borderless geometry, smooth transitions between surfaces, realistic ambient occlusion, volumetric natural sunlight, subtle organic imperfections, rich textures on concrete and wood, lived-in luxury atmosphere, 8k resolution, cinematic color grading.\n\nimage2 should be used only for reference for ilumination and materials\n\nAvoid: 3d render, sketchup lines, black outlines, cartoon edges, drawing contours, wireframe, visible geometric borders, sharp artificial ink lines, architectural draft style, CGI, plastic textures, perfect CAD lines, rendering white dots, solid black creases",
       "clip": [
         "115:38",
         0
@@ -153,7 +379,7 @@
       "megapixels": 1,
       "resolution_steps": 1,
       "image": [
-        "78",
+        "141:138",
         0
       ]
     },
@@ -164,12 +390,12 @@
   },
   "115:3": {
     "inputs": {
-      "seed": 795947431051357,
+      "seed": 858539556181995,
       "steps": 4,
-      "cfg": 1,
+      "cfg": 1.3,
       "sampler_name": "euler",
       "scheduler": "simple",
-      "denoise": 1,
+      "denoise": 0.94,
       "model": [
         "115:75",
         0
