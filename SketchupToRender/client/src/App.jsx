@@ -568,6 +568,7 @@ function App() {
   // Submission handler
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isGenerating) return;
     if (!mainImage) {
       setError('Por favor, sube una imagen de renderizado de SketchUp primero.');
       return;
@@ -955,6 +956,7 @@ function App() {
   // Upscale to 4K handler
   const handleUpscale = async () => {
     if (!resultFilename) return;
+    if (isUpscaling) return;
 
     setIsUpscaling(true);
     setError(null);

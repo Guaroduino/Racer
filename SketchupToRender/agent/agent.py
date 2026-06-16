@@ -4,7 +4,6 @@ import time
 import json
 import uuid
 import queue
-import threadpoolctl # not strictly required, but standard imports
 import threading
 import tempfile
 import requests
@@ -53,6 +52,7 @@ except Exception as e:
 
 # Cola de procesamiento en memoria para no sobrecargar la GPU
 job_queue = queue.Queue()
+processed_job_ids = set()
 
 def scan_comfy_url():
     """Detecta el puerto activo de ComfyUI (8188 o 8000)"""
@@ -557,8 +557,10 @@ def on_snapshot_listener(doc_snapshot, changes, read_time):
             # Si el documento recién añadido (o que entra en vista) está 'pendiente'
             if estado == 'pendiente':
                 job_id = doc.id
-                print(f"\n[Agente] ¡Nuevo render detectado! JobID: {job_id} (Encolando...)")
-                job_queue.put((job_id, data))
+                if job_id not in processed_job_ids:
+                    processed_job_ids.add(job_id)
+                    print(f"\n[Agente] ¡Nuevo render detectado! JobID: {job_id} (Encolando...)")
+                    job_queue.put((job_id, data))
 
 def main():
     print("=" * 80)
